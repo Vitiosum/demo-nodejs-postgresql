@@ -90,6 +90,20 @@ html(lang="en")
       .toast.show { opacity: 1; transform: none; pointer-events: auto; }
       .toast-close { cursor: pointer; opacity: 0.6; margin-left: auto; font-size: 16px; background: none; border: none; color: inherit; }
       @media (max-width: 480px) { .input-row { flex-direction: column; } }
+      .footer { margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 24px; }
+      .footer-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 14px; }
+      .footer-link {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 8px; color: #64748b; font-size: 12px; padding: 6px 12px;
+        text-decoration: none; transition: all 0.2s;
+      }
+      .footer-link:hover { background: rgba(255,255,255,0.08); color: #94a3b8; border-color: rgba(255,255,255,0.12); }
+      .footer-link.cc { color: #86efac; border-color: rgba(34,197,94,0.2); background: rgba(34,197,94,0.06); }
+      .footer-link.cc:hover { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.3); }
+      .footer-link.li { color: #93c5fd; border-color: rgba(96,165,250,0.2); background: rgba(96,165,250,0.06); }
+      .footer-link.li:hover { background: rgba(96,165,250,0.12); border-color: rgba(96,165,250,0.3); }
+      .footer-copy { text-align: center; color: #334155; font-size: 11px; }
   body
     block content
     div#toast.toast
