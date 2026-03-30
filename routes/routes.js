@@ -3,6 +3,10 @@ var pg = require('../db');
 
 var router = express.Router();
 
+router.get('/health', function(req, res) {
+  res.status(200).json({ status: 'ok' });
+});
+
 /* GET home page. */
 router.get('/', function(req, res) {
   pg.getVal(res);
