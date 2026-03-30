@@ -1,0 +1,6 @@
+{
+  "deploy": {
+    "startupFile": "node",
+    "args": "./bin/www"
+  }
+}
