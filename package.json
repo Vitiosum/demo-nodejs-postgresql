@@ -6,12 +6,12 @@
     "start": "node ./bin/www"
   },
   "engines": {
-    "node": "^20"
+    "node": ">=20"
   },
   "dependencies": {
     "cookie-parser": "^1.4.6",
     "debug": "^4.3.5",
-    "express": "^4.19.0",
+    "express": "^5.2.1",
     "morgan": "^1.10.0",
     "node-statsd": "^0.1.1",
     "pg": "^8.12.0",
