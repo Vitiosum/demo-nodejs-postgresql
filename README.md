@@ -24,7 +24,7 @@
 | Framework | Express 5        |
 | Database  | PostgreSQL       |
 | Driver    | pg 8.20          |
-| Design    | Track Night (Bebas Neue, orange #FF5A1F, dark background) |
+| Design    | Clever Brand Kit (Plus Jakarta Sans, navy #13172e, dégradé Clever) |
 
 ---
 
@@ -34,6 +34,24 @@
 - PostgreSQL persistence via Clever Cloud add-on
 - Auto-creates the table on first boot if it doesn't exist
 - `/health` endpoint
+- « Vu depuis Clever Cloud » panel: reads the variables injected by the platform (`CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID`), plus PostgreSQL version and row count — shows « Local · hors Clever Cloud » when run outside the platform
+
+---
+
+## Certification Clever Cloud
+
+The home page puts the **Clever Cloud certification** front and center (badge, the two official tracks and a call to action), right under the hero:
+
+- **Cloud Computing Fundamentals** — concepts, architectures, IaaS · PaaS · FaaS models
+- **Advanced Deployment** — mastering application deployment on Clever Cloud
+
+Digital badges are issued automatically once a track is validated: [academy.clever.cloud](https://academy.clever.cloud/).
+
+---
+
+## Design
+
+Shared **Clever Brand Kit**: `public/cc-brand.css` (tokens `--cc-*` and components, copied as-is — do not edit), inline SVG logo and certification badge in `views/partials/`, demo-specific styles in `public/demo.css`. Fonts: Plus Jakarta Sans + JetBrains Mono via Google Fonts, with system fallbacks. No new runtime dependency.
 
 ---
 

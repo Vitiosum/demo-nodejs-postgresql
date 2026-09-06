@@ -1,6 +1,16 @@
 extends layout
 
 block content
-  h1= message
-  h2= error.status
-  pre #{error.stack}
+  section.cc-section
+    .cc-container
+      .cc-card.cc-card--pad.cc-card--accent.demo-error.cc-reveal(style="--i:0")
+        .cc-card__label
+          | Erreur
+          if error && error.status
+            |  #{error.status}
+        h1.cc-section__title.cc-mt-1= message
+        p.cc-card__hint.cc-mt-1 La page demandée n'a pas pu être servie par l'application.
+        if error && error.stack
+          pre.cc-code.cc-mt-2= error.stack
+        .cc-mt-3
+          a.cc-btn.cc-btn--gradient(href="/") Retour à l'accueil

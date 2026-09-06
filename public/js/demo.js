@@ -1,122 +1,127 @@
-document.addEventListener('DOMContentLoaded', function () {
+// Ajout / suppression de valeurs sans rechargement (POST /values, DELETE /values/:id)
+(function () {
   var form = document.getElementById('createForm');
-  if (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var input = document.getElementById('value');
-      var val = input.value.trim();
+  var input = document.getElementById('value');
+  var button = document.getElementById('create');
+  var list = document.getElementById('values');
+  if (!form || !list) return;
 
-      if (val === '') {
-        showToast('Please enter a value before submitting.');
-        return;
-      }
-
-      setLoading(true);
-
-      fetch(form.action, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'value=' + encodeURIComponent(val)
-      })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.status === 'ok') {
-            addItem(data.value, data.id);
-            input.value = '';
-            input.focus();
-            updateCount(1);
-          } else {
-            showToast(data.value || 'An error occurred.');
-          }
-        })
-        .catch(function () { showToast('Network error — please try again.'); })
-        .finally(function () { setLoading(false); });
-    });
-  }
-});
-
-function setLoading(on) {
-  var btn = document.getElementById('create');
-  var spinner = document.getElementById('spinner');
-  var txt = document.getElementById('btn-text');
-  if (!btn) return;
-  btn.disabled = on;
-  spinner.style.display = on ? 'block' : 'none';
-  txt.textContent = on ? 'Adding…' : 'Add';
-}
-
-function addItem(value, id) {
-  var list = document.getElementById('list');
-  if (!list) return;
-
-  // Remove empty state if present
-  var empty = list.previousElementSibling;
-  if (empty && empty.classList.contains('empty-state')) {
-    empty.remove();
-  }
-  // If list was a plain div (empty state), convert it to a ul
-  if (list.tagName !== 'UL') {
-    var ul = document.createElement('ul');
-    ul.className = 'values-list';
-    ul.id = 'list';
-    list.parentNode.replaceChild(ul, list);
-    list = ul;
-  }
-
-  var li = document.createElement('li');
-  li.className = 'value-item';
-  li.id = id;
-  li.innerHTML =
-    '<div>' +
-      '<div class="value-text">' + escapeHtml(value) + '</div>' +
-      '<div class="value-id">#' + id + '</div>' +
-    '</div>' +
-    '<button class="btn-delete" onclick="deleteItem(' + id + ')">Delete</button>';
-  list.appendChild(li);
-}
-
-function deleteItem(id) {
-  fetch('/values/' + id, { method: 'DELETE' })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      if (data.status === 'ok') {
-        var item = document.getElementById(data.value);
-        if (item) {
-          item.style.transition = 'opacity 0.2s, transform 0.2s';
-          item.style.opacity = '0';
-          item.style.transform = 'translateX(8px)';
-          setTimeout(function () {
-            item.remove();
-            updateCount(-1);
-            checkEmpty();
-          }, 200);
-        }
-      } else {
-        showToast(data.value || 'Delete failed.');
-      }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var val = input.value.trim();
+    if (val === '') {
+      showToast("Saisissez une valeur avant d'ajouter.");
+      input.focus();
+      return;
+    }
+    setLoading(true);
+    fetch(form.action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'value=' + encodeURIComponent(val)
     })
-    .catch(function () { showToast('Network error — please try again.'); });
-}
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.status === 'ok') {
+          addRow(data.value, data.id);
+          input.value = '';
+          input.focus();
+        } else {
+          showToast(data.value || "L'ajout a échoué.");
+        }
+      })
+      .catch(function () { showToast('Erreur réseau — réessayez.'); })
+      .finally(function () { setLoading(false); });
+  });
 
-function checkEmpty() {
-  var list = document.getElementById('list');
-  if (!list) return;
-  if (list.children.length === 0) {
-    var empty = document.createElement('div');
-    empty.className = 'empty-state';
-    empty.innerHTML = '<div class="empty-icon">🗃️</div><div>No values yet — add one above</div>';
-    list.parentNode.insertBefore(empty, list.nextSibling);
+  list.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-delete]');
+    if (!btn) return;
+    deleteRow(btn.getAttribute('data-delete'), btn);
+  });
+
+  function setLoading(on) {
+    button.disabled = on;
+    button.textContent = on ? 'Ajout…' : 'Ajouter';
   }
-}
 
-function updateCount(delta) {
-  var el = document.getElementById('count');
-  if (!el) return;
-  var list = document.getElementById('list');
-  var n = list ? list.children.length : 0;
-  el.textContent = n > 0 ? '(' + n + ')' : '';
-}
+  function addRow(value, id) {
+    var empty = list.querySelector('.cc-empty');
+    if (empty) empty.remove();
 
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    var li = document.createElement('li');
+    li.className = 'cc-row demo-row-in';
+    li.id = 'row-' + id;
+    li.setAttribute('data-id', id);
+    li.innerHTML =
+      '<span class="cc-row__id">#' + id + '</span>' +
+      '<div class="cc-row__main">' +
+        '<div class="cc-row__title">' + escapeHtml(String(value)) + '</div>' +
+        '<div class="cc-row__meta">JSONB · PostgreSQL</div>' +
+      '</div>' +
+      '<div class="cc-row__actions">' +
+        '<button class="cc-btn cc-btn--sm cc-btn--danger" type="button" data-delete="' + id + '">Supprimer</button>' +
+      '</div>';
+    list.appendChild(li);
+    updateCount();
+  }
+
+  function deleteRow(id, btn) {
+    btn.disabled = true;
+    fetch('/values/' + encodeURIComponent(id), { method: 'DELETE' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.status !== 'ok') {
+          btn.disabled = false;
+          showToast(data.value || 'Suppression impossible.');
+          return;
+        }
+        var row = document.getElementById('row-' + data.value);
+        if (!row) return;
+        row.classList.add('demo-row-out');
+        setTimeout(function () {
+          row.remove();
+          updateCount();
+          if (!list.querySelector('.cc-row')) {
+            var empty = document.createElement('li');
+            empty.className = 'cc-empty';
+            empty.innerHTML = '<strong>Aucune valeur pour l\'instant</strong>Ajoutez-en une ci-dessus : elle sera persistée dans PostgreSQL.';
+            list.appendChild(empty);
+          }
+        }, 200);
+      })
+      .catch(function () { btn.disabled = false; showToast('Erreur réseau — réessayez.'); });
+  }
+
+  function updateCount() {
+    var n = list.querySelectorAll('.cc-row').length;
+    var label = n + ' ligne' + (n > 1 ? 's' : '');
+    var count = document.getElementById('count');
+    var pgRows = document.getElementById('pg-rows');
+    if (count) count.textContent = label;
+    if (pgRows) pgRows.textContent = label;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+})();
+
+// Toast (partagé avec la page d'erreur via le layout)
+var toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 4000);
 }
+function hideToast() {
+  var t = document.getElementById('toast');
+  if (t) t.classList.remove('is-visible');
+}
+document.addEventListener('DOMContentLoaded', function () {
+  var close = document.querySelector('.demo-toast__close');
+  if (close) close.addEventListener('click', hideToast);
+});

@@ -91,10 +91,23 @@ Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
 bin/www           → point d'entrée HTTP (démarrage serveur)
 app.js            → setup Express, middlewares, error handlers
 db.js             → pool PostgreSQL, init schema, requêtes CRUD
-routes/routes.js  → handlers GET /, GET /prime, POST /values, DELETE /values/:id
-views/            → templates Pug
+routes/routes.js  → handlers GET /, GET /health, GET /prime, POST /values, DELETE /values/:id
+views/            → templates Pug (layout = topbar + footer Clever, index = héro + certification + démo + panneau plateforme)
+views/partials/   → logo et badge certification Clever Cloud en SVG (inlinés via app.locals)
+public/cc-brand.css → Clever Brand Kit partagé (copié tel quel, ne pas modifier)
+public/demo.css   → styles spécifiques à la démo (toast, animations de lignes)
+public/js/demo.js → ajout / suppression sans rechargement (POST /values, DELETE /values/:id)
 clevercloud/node.json → config déploiement Clever Cloud
 ```
+
+---
+
+## 🎨 Design — Clever Brand Kit
+
+- Système visuel unique des démos Clever Cloud : Plus Jakarta Sans, navy `#13172e`, dégradé Clever (`#f57461 → #cb1c42 → #a51050`), JetBrains Mono pour les valeurs techniques.
+- Structure de la page d'accueil : topbar → héro → bloc certification (academy.clever.cloud) → carte « Valeurs stockées » + panneau « Vu depuis Clever Cloud » → « Ce que Clever Cloud fait » → footer.
+- Le panneau plateforme lit `CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID` (`db.js › platformInfo`). Sans `APP_ID` → « Local · hors Clever Cloud ».
+- Spec : `docs/superpowers/specs/2026-09-06-clever-brand-design.md`.
 
 ---
 

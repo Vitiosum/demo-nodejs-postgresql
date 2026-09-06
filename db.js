@@ -1,6 +1,7 @@
 var pg = require('pg');
 var statsd = require('./statsd');
 var pool;
+var pgVersion = null;
 
 var createTableText = `
 
@@ -9,6 +10,44 @@ CREATE TABLE IF NOT EXISTS values (
   data JSONB
 );
 `;
+
+function loadPgVersion() {
+  pool.query('SELECT version()', [], function (err, res) {
+    if (!err && res.rows[0]) {
+      pgVersion = (res.rows[0].version.match(/PostgreSQL (\S+)/) || [])[1] || null;
+    }
+  });
+}
+
+function rowsLabel(n) {
+  return n + ' ligne' + (n > 1 ? 's' : '');
+}
+
+// Ce que Clever Cloud injecte dans l'environnement de l'app (panneau « Vu depuis Clever Cloud »).
+// Sans APP_ID → exécution locale : le panneau affiche « Local · hors Clever Cloud ».
+function platformInfo(rowCount) {
+  var e = process.env;
+  var short = function (v, n) { return v ? String(v).slice(0, n) : null; };
+  var nodeMajor = process.versions.node.split('.')[0];
+  var expressVersion = require('express/package.json').version;
+  var pgMajor = pgVersion ? pgVersion.split('.')[0] : null;
+  return {
+    live: !!e.APP_ID,
+    appName: e.CC_APP_NAME || null,
+    appId: e.APP_ID || null,
+    instance: e.INSTANCE_NUMBER != null
+      ? '#' + e.INSTANCE_NUMBER + (e.CC_PRETTY_INSTANCE_NAME ? ' · ' + e.CC_PRETTY_INSTANCE_NAME : '')
+      : null,
+    instanceType: e.INSTANCE_TYPE || null,
+    commit: short(e.CC_COMMIT_ID, 7),
+    deployment: short(e.CC_DEPLOYMENT_ID, 16),
+    pgVersion: pgVersion,
+    rows: rowCount != null ? rowsLabel(rowCount) : null,
+    nodeVersion: process.version,
+    expressVersion: expressVersion,
+    stack: 'Node.js ' + nodeMajor + ' · Express ' + expressVersion.split('.')[0] + ' · PostgreSQL' + (pgMajor ? ' ' + pgMajor : ''),
+  };
+}
 
 module.exports = {
     connectDB : function() {
@@ -19,8 +58,11 @@ module.exports = {
             if (err) {
               throw err
             }
+            loadPgVersion();
           })
     },
+
+    platformInfo : platformInfo,
 
     updateGauge : function() {
         pool.query('SELECT COUNT(1) FROM values;', [], (err, res) => {
@@ -32,18 +74,20 @@ module.exports = {
     },
 
     getVal : function(result) {
-        pool.query('SELECT * FROM values;', [], (err, res) => {
+        pool.query('SELECT * FROM values ORDER BY id;', [], (err, res) => {
             if (err) {
                 console.log(err);
-                res.send('database error');
+                result.status(500).render('error', { message: 'Erreur base de données', error: {} });
                 return
             }
-            var values = {};
-            for (var i in res.rows) {
-                var val = res.rows[i];
-                values[val["id"]] = val["data"]["value"]
-            }
-            result.render('index', {title: 'NodeJS PostgreSQL demo', values: values});
+            var values = res.rows.map(function (row) {
+                return { id: row.id, value: row.data && row.data.value };
+            });
+            result.render('index', {
+                title: 'Node.js + PostgreSQL · Démo Clever Cloud',
+                values: values,
+                cc: platformInfo(res.rows.length)
+            });
           });
     },
 
@@ -56,7 +100,7 @@ module.exports = {
             }
             this.updateGauge();
             statsd.increment('creations');
-            result = queryData.rows[0];
+            var result = queryData.rows[0];
             res.status(201).send(JSON.stringify({status: "ok", value: result["data"].value, id: result["id"]}));
           });
     },
