@@ -67,7 +67,7 @@ router.post('/values', rejectCrossSite, function(req, res) {
 router.delete('/values/:id', rejectCrossSite, function(req, res) {
   var id = req.params.id;
 
-  if (!/^\d{1,10}$/.test(id)) {
+  if (!/^\d{1,10}$/.test(id) || Number(id) > 2147483647) {
     return res.status(400).json({ status: 'error', value: 'Identifiant invalide.' });
   }
   pg.delVal(id, function (err) {
