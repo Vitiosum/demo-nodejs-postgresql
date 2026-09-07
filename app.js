@@ -1,9 +1,7 @@
 var express       = require('express');
 var path          = require('path');
 var fs            = require('fs');
-var favicon       = require('serve-favicon');
 var logger        = require('morgan');
-var cookieParser  = require('cookie-parser');
 var pg       = require('./db');
 
 var routes = require('./routes/routes');
@@ -18,11 +16,9 @@ app.set('view engine', 'pug');
 app.locals.ccLogo = fs.readFileSync(path.join(__dirname, 'views/partials/cc-logo.svg'), 'utf8');
 app.locals.ccBadge = fs.readFileSync(path.join(__dirname, 'views/partials/cc-badge.svg'), 'utf8');
 
-app.use(favicon(path.join(__dirname, 'public', 'img', 'favicon.ico')));
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Infos plateforme disponibles dans tous les templates (topbar, page d'erreur)

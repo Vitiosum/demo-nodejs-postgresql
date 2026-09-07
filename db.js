@@ -1,5 +1,4 @@
 var pg = require('pg');
-var statsd = require('./statsd');
 var pool;
 var pgVersion = null;
 
@@ -64,14 +63,6 @@ module.exports = {
 
     platformInfo : platformInfo,
 
-    updateGauge : function() {
-        pool.query('SELECT COUNT(1) FROM values;', [], (err, res) => {
-            if (err) {
-              throw err
-            }
-            statsd.gauge('values', res.rows[0]);
-          })
-    },
 
     getVal : function(result) {
         pool.query('SELECT * FROM values ORDER BY id;', [], (err, res) => {
@@ -98,8 +89,6 @@ module.exports = {
                 res.send(JSON.stringify({status: "error", value: "Error, db request failed"}));
                 return
             }
-            this.updateGauge();
-            statsd.increment('creations');
             var result = queryData.rows[0];
             res.status(201).send(JSON.stringify({status: "ok", value: result["data"].value, id: result["id"]}));
           });
@@ -110,8 +99,6 @@ module.exports = {
             if (err) {
                 console.log(err);
             }
-            this.updateGauge();
-            statsd.increment('deletions');
           });
     }
 };
