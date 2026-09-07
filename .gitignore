@@ -1,4 +1,18 @@
+# Dépendances
 /node_modules/
-npm-debug.log
-.clever.json
+
+# Environnement et identifiants (jamais committés)
 .env
+.env.*
+!.env.example
+.clever.json
+
+# Logs et rapports
+*.log
+npm-debug.log*
+coverage/
+
+# Système et IDE
+.DS_Store
+.vscode/
+.idea/
