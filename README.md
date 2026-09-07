@@ -20,7 +20,7 @@
 
 | Layer     | Technology       |
 |-----------|------------------|
-| Runtime   | Node.js ≥ 20 (`engines.node: ">=20"` lets Clever Cloud pick its current default LTS) |
+| Runtime   | Node.js ≥ 20 (`engines.node: ">=20"` — the platform installs the most recent version matching the range, not a pinned LTS; Node 26 on the last deployment) |
 | Framework | Express 5        |
 | Database  | PostgreSQL       |
 | Driver    | pg 8.23          |

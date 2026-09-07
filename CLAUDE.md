@@ -52,7 +52,8 @@ L'utilisateur peut ajouter et supprimer des valeurs texte via une interface web.
 Endpoint `/prime` (tests de charge CPU) monté uniquement si `ENABLE_PRIME=true`.
 Conçue comme démo de déploiement sur **Clever Cloud** avec add-on PostgreSQL.
 
-Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
+Cible de déploiement : **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
+Aucune instance n'est maintenue en service — la procédure ci-dessous est rejouable à la demande.
 
 ---
 
@@ -61,7 +62,7 @@ Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
 - **Type d'app** : Node.js
 - **Add-on requis** : PostgreSQL (lié à l'application)
 - **Démarrage** : `scripts.start` → `node ./bin/www` (`clevercloud/node.json` est historique et redondant, conservé tel quel)
-- **Version Node** : `engines.node: ">=20"` → la plateforme choisit sa LTS par défaut
+- **Version Node** : `engines.node: ">=20"` → la plateforme installe la version la plus récente satisfaisant la contrainte, pas une LTS figée (Node 26 au dernier déploiement) ; le panneau « Vu depuis Clever Cloud » affiche la version réellement exécutée
 
 ### Variables d'environnement
 | Variable | Origine | Description |
@@ -125,7 +126,7 @@ git commit -m "description"
 git push
 ```
 
-Clever Cloud redéploie automatiquement après chaque push.
+Une fois l'application créée et son remote Clever Cloud lié au dépôt, chaque push déclenche un redéploiement automatique.
 
 ---
 
