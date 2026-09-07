@@ -49,7 +49,7 @@ Tu dois raisonner avec fermeté : ne propose pas plusieurs pistes floues si une 
 
 App CRUD minimaliste Node.js + PostgreSQL.
 L'utilisateur peut ajouter et supprimer des valeurs texte via une interface web.
-Endpoint `/prime` disponible pour tests de charge CPU.
+Endpoint `/prime` (tests de charge CPU) monté uniquement si `ENABLE_PRIME=true`.
 Conçue comme démo de déploiement sur **Clever Cloud** avec add-on PostgreSQL.
 
 Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
@@ -60,14 +60,20 @@ Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
 
 - **Type d'app** : Node.js
 - **Add-on requis** : PostgreSQL (lié à l'application)
-- **Config** : `clevercloud/node.json`
+- **Démarrage** : `scripts.start` → `node ./bin/www` (`clevercloud/node.json` est historique et redondant, conservé tel quel)
+- **Version Node** : `engines.node: ">=20"` → la plateforme choisit sa LTS par défaut
 
-### Variables d'environnement injectées automatiquement par Clever Cloud
-| Variable | Description |
-|---|---|
-| `POSTGRESQL_ADDON_DIRECT_URI` | URI PostgreSQL avec accès direct (à activer dans la console) |
-| `POSTGRESQL_ADDON_URI` | URI PostgreSQL standard (fallback) |
-| `PORT` | Port d'écoute (défaut : 3000) |
+### Variables d'environnement
+| Variable | Origine | Description |
+|---|---|---|
+| `POSTGRESQL_ADDON_DIRECT_URI` | injectée | URI PostgreSQL avec accès direct (à activer dans la console) — lue en priorité |
+| `POSTGRESQL_ADDON_URI` | injectée | URI PostgreSQL standard (repli) |
+| `PORT` | injectée | Port d'écoute (8080 sur Clever, 3000 en local) |
+| `NODE_ENV` | **à poser** | `production` (`clever env set NODE_ENV production`) ; seul `development` affiche les stack traces |
+| `PG_POOL_MAX` | optionnelle | Taille du pool par instance (défaut 4) ; règle pool × instances ≤ connexions du plan (DEV = 5) |
+| `ENABLE_PRIME` | optionnelle | `true` monte `GET /prime` (bloque l'event loop ~8 s) — uniquement le temps d'une démo de charge |
+| `CC_HEALTH_CHECK_PATH` | recommandée | `/health` (vérifie PostgreSQL : 200 ou 503) |
+| `CC_REVERSE_PROXY_IPS` | injectée | Utilisée pour `trust proxy` (req.ip / req.protocol côté client) |
 
 > ⚠️ Activer "Direct hostname and port" sur l'add-on PostgreSQL dans la console Clever Cloud pour que `POSTGRESQL_ADDON_DIRECT_URI` soit disponible.
 
@@ -79,9 +85,9 @@ Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
 |---|---|
 | Node.js | >=20 |
 | Framework | Express ^5.2 |
-| Base de données | PostgreSQL (via `pg` ^8.20) |
+| Base de données | PostgreSQL (via `pg` ^8.12, 8.23 installé) |
 | Templates | Pug ^3.0 |
-| Métriques | StatsD (UDP 127.0.0.1:8125, silencieux si absent) |
+| Logs | morgan + console.* sur stdout/stderr (aucune métrique externe) |
 
 ---
 
@@ -89,15 +95,15 @@ Déployée sur **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
 
 ```
 bin/www           → point d'entrée HTTP (démarrage serveur)
-app.js            → setup Express, middlewares, error handlers
-db.js             → pool PostgreSQL, init schema, requêtes CRUD
-routes/routes.js  → handlers GET /, GET /health, GET /prime, POST /values, DELETE /values/:id
+app.js            → setup Express, trust proxy, en-têtes de sécurité (CSP), gestionnaire d'erreurs
+db.js             → pool PostgreSQL (PG_POOL_MAX), init schema (fail-fast), ping/close, requêtes CRUD
+routes/routes.js  → GET /, GET /health, POST /values, DELETE /values/:id, GET /prime (si ENABLE_PRIME=true), garde Sec-Fetch-Site
 views/            → templates Pug (layout = topbar + footer Clever, index = héro + certification + démo + panneau plateforme)
 views/partials/   → logo et badge certification Clever Cloud en SVG (inlinés via app.locals)
 public/cc-brand.css → Clever Brand Kit partagé (copié tel quel, ne pas modifier)
 public/demo.css   → styles spécifiques à la démo (toast, animations de lignes)
 public/js/demo.js → ajout / suppression sans rechargement (POST /values, DELETE /values/:id)
-clevercloud/node.json → config déploiement Clever Cloud
+clevercloud/node.json → config historique (redondante avec scripts.start)
 ```
 
 ---
@@ -125,10 +131,12 @@ Clever Cloud redéploie automatiquement après chaque push.
 
 ## ⚠️ Points de vigilance
 
-- L'app crash au démarrage si `POSTGRESQL_ADDON_URI` ou `POSTGRESQL_ADDON_DIRECT_URI` n'est pas défini → l'add-on PostgreSQL doit être lié avant le premier déploiement
+- L'app sort en `exit(1)` au démarrage (fail-fast, message `[db] init schema impossible`) si `POSTGRESQL_ADDON_URI` / `POSTGRESQL_ADDON_DIRECT_URI` n'est pas défini ou si la base est injoignable → l'add-on PostgreSQL doit être lié avant le premier déploiement
 - La table est créée automatiquement au démarrage (`db.js`) si elle n'existe pas
-- StatsD envoie des métriques en UDP silencieux — aucun crash si absent, aucune métrique non plus
 - Pas de retry sur la connexion DB au boot
+- `NODE_ENV=production` doit être posé dans la console ; sans lui rien n'est exposé (la stack n'est rendue que si `NODE_ENV=development`), mais Express reste en mode développement (cache des vues désactivé)
+- Pool : `PG_POOL_MAX` (défaut 4) × nombre d'instances ≤ connexions du plan add-on (DEV = 5)
+- `SIGTERM` géré : arrêt propre en ≤ 8 s à chaque redéploiement
 
 ---
 
@@ -138,4 +146,6 @@ Clever Cloud redéploie automatiquement après chaque push.
 |---|---|---|
 | Crash au démarrage | Add-on PostgreSQL non lié | Lier l'add-on dans la console Clever Cloud |
 | Erreur de connexion DB | `DIRECT_URI` non disponible | Activer "Direct hostname and port" sur l'add-on |
+| `/health` renvoie 503 | PostgreSQL injoignable ou pool saturé | Vérifier l'add-on, `PG_POOL_MAX` × instances ≤ plan |
+| `/prime` renvoie 404 | `ENABLE_PRIME` absent | Normal — `clever env set ENABLE_PRIME true` le temps d'une démo de charge |
 | `/prime` très lent | Normal — calcul CPU intentionnel | Pas de correction nécessaire |
