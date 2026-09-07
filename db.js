@@ -49,26 +49,46 @@ function platformInfo(rowCount) {
 }
 
 module.exports = {
+    // Pool dimensionné pour le plan add-on : règle pool × instances ≤ connexions du plan
+    // (plan DEV PostgreSQL = 5). PG_POOL_MAX permet d'ajuster sans toucher au code.
     connectDB : function() {
         pool = new pg.Pool({
             connectionString: process.env.POSTGRESQL_ADDON_DIRECT_URI || process.env.POSTGRESQL_ADDON_URI,
-        })
-        pool.query(createTableText, [], (err, res) => {
+            max: Number(process.env.PG_POOL_MAX) || 4,
+            idleTimeoutMillis: 10000,
+            connectionTimeoutMillis: 5000,
+        });
+        // Une connexion idle coupée par l'add-on ne doit pas tuer le process
+        pool.on('error', function (err) {
+            console.error('[pg] idle client error', err.message);
+        });
+        pool.query(createTableText, [], function (err) {
             if (err) {
-              throw err
+                // Fail-fast explicite au boot : sans schéma, l'app ne peut rien servir
+                console.error('[db] init schema impossible :', err.message);
+                process.exit(1);
             }
             loadPgVersion();
-          })
+        });
+    },
+
+    // Utilisé par /health : SELECT 1 avec timeout court
+    ping : function() {
+        return pool.query({ text: 'SELECT 1', query_timeout: 2000 });
+    },
+
+    // Utilisé à l'arrêt (SIGTERM) pour rendre les connexions proprement
+    close : function() {
+        return pool ? pool.end() : Promise.resolve();
     },
 
     platformInfo : platformInfo,
 
-
     getVal : function(result) {
         pool.query('SELECT * FROM values ORDER BY id;', [], (err, res) => {
             if (err) {
-                console.log(err);
-                result.status(500).render('error', { message: 'Erreur base de données', error: {} });
+                console.error('[db] lecture impossible :', err.message);
+                result.status(500).render('error', { message: 'Erreur base de données', error: { status: 500 } });
                 return
             }
             var values = res.rows.map(function (row) {
@@ -85,20 +105,22 @@ module.exports = {
     sendVal : function(val, res) {
         pool.query('INSERT INTO values(data) VALUES($1) RETURNING *', [{'value': val}], (err, queryData) => {
             if (err) {
-                console.log(err);
-                res.send(JSON.stringify({status: "error", value: "Error, db request failed"}));
+                console.error('[db] insertion impossible :', err.message);
+                res.status(500).json({ status: 'error', value: 'Erreur base de données' });
                 return
             }
             var result = queryData.rows[0];
-            res.status(201).send(JSON.stringify({status: "ok", value: result["data"].value, id: result["id"]}));
+            res.status(201).json({ status: 'ok', value: result.data.value, id: result.id });
           });
     },
 
-    delVal : function(id) {
-        pool.query('DELETE FROM values where id = $1', [id], (err, result) => {
+    delVal : function(id, callback) {
+        pool.query('DELETE FROM values WHERE id = $1', [id], (err, result) => {
             if (err) {
-                console.log(err);
+                console.error('[db] suppression impossible :', err.message);
+                return callback(err);
             }
+            callback(null, result.rowCount);
           });
     }
 };
