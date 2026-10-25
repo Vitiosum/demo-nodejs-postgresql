@@ -53,7 +53,7 @@ Endpoint `/prime` (tests de charge CPU) monté uniquement si `ENABLE_PRIME=true`
 Conçue comme démo de déploiement sur **Clever Cloud** avec add-on PostgreSQL.
 
 Cible de déploiement : **Clever Cloud** (runtime Node.js + add-on PostgreSQL).
-Aucune instance n'est maintenue en service — la procédure ci-dessous est rejouable à la demande.
+Application en service du 2026-10-25 au 2026-11-05 (suppression planifiée après le tournage vidéo du 2026-11-04) : `app_f0dd41c9-4aae-4906-9bec-d34f6d537227`, https://app-f0dd41c9-4aae-4906-9bec-d34f6d537227.cleverapps.io/, add-on `demo-node-db` (PostgreSQL `xxs_sml` chiffré). Après cette date, recréer avec la procédure du README (add-on `demo-node-db`).
 
 ---
 
@@ -132,7 +132,7 @@ clevercloud/node.json → config historique (redondante avec scripts.start)
 
 - Système visuel unique des démos Clever Cloud : Plus Jakarta Sans, navy `#13172e`, dégradé Clever (`#f57461 → #cb1c42 → #a51050`), JetBrains Mono pour les valeurs techniques.
 - Structure de la page d'accueil (refonte vidéo) : topbar → bandeau ANNOUNCEMENT → premier écran (titre « N valeurs dans PostgreSQL. », pouls des écritures 24 h, trajet de la requête (`instance #N` seulement, le nom Pokémon reste dans le panneau), « Une seule requête SQL pour cette page. » ; terminal psql (seule mesure affichée : `Temps : x ms`) avec SELECT réel, INSERT saisissable, variables de démo et variables Clever) → bloc certification (`partials/cert.pug`, badge animé, une seule inclusion par page à cause des `id` SVG) → « Toutes les valeurs » → footer.
-- Contraste : texte blanc sur dégradé assombri (`#d14836 → #cb1c42 → #a51050`), ligatures JetBrains Mono désactivées dans le terminal (`=>` reste lisible), `prefers-reduced-motion` respecté.
+- Contraste : texte blanc sur dégradé assombri (`#cc4432 → #cb1c42 → #a51050`, AA), ligatures JetBrains Mono désactivées dans le terminal (`=>` reste lisible), `prefers-reduced-motion` respecté.
 - Les variables injectées par Clever (`CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID`) sont lues par `db.js › platformInfo` et affichées sous le terminal ; absentes (local) → « injecté au déploiement ». Sans `APP_ID` → pastille « Local · hors Clever Cloud ».
 - Spec : `docs/superpowers/specs/2026-09-06-clever-brand-design.md`.
 
@@ -143,10 +143,11 @@ clevercloud/node.json → config historique (redondante avec scripts.start)
 ```bash
 git add .
 git commit -m "description"
-git push
+git push          # sauvegarde GitHub uniquement
+clever deploy     # déploie main sur Clever Cloud
 ```
 
-Une fois l'application créée et son remote Clever Cloud lié au dépôt, chaque push déclenche un redéploiement automatique.
+Pas de liaison GitHub → Clever Cloud (`clever create --github` refusé par l'API, « wrong oauth application data » ; intégration GitHub du compte à reconnecter dans la Console) : un `git push` ne redéploie pas, `clever deploy` est nécessaire.
 
 ---
 

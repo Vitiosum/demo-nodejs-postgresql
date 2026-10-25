@@ -19,15 +19,19 @@ Boutons du premier écran : « Écrire une valeur » (focus sur le terminal) et 
 
 ## Déployer sur Clever Cloud
 
+Application en service du 2026-10-25 au 2026-11-05 (suppression planifiée après le tournage vidéo du 2026-11-04) : `app_f0dd41c9-4aae-4906-9bec-d34f6d537227`, https://app-f0dd41c9-4aae-4906-9bec-d34f6d537227.cleverapps.io/, add-on `demo-node-db` (PostgreSQL `xxs_sml` chiffré). Après cette date, recréer avec la procédure ci-dessous.
+
 ```bash
 clever create --type node demo-nodejs-postgresql
-clever addon create postgresql-addon --plan xxs_sml --option encryption=true demo-nodejs-pg
-clever service link-addon demo-nodejs-pg
+clever addon create postgresql-addon --plan xxs_sml --option encryption=true demo-node-db
+clever service link-addon demo-node-db
 clever env set NODE_ENV production
 clever env set CC_HEALTH_CHECK_PATH /health
 clever env set CC_CACHE_DEPENDENCIES true
 clever deploy
 ```
+
+Déployer une modification : `git push` (sauvegarde GitHub) puis `clever deploy`. Il n'y a pas de liaison GitHub → Clever Cloud : un `git push` seul ne redéploie pas.
 
 Démarrage : `scripts.start` → `node ./bin/www`. Version Node : `engines.node: "24"`. La table `values` est créée (ou complétée par `created_at`) au démarrage.
 
