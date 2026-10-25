@@ -6,7 +6,7 @@
     "start": "node ./bin/www"
   },
   "engines": {
-    "node": ">=20"
+    "node": "24"
   },
   "dependencies": {
     "debug": "^4.3.5",
