@@ -8,7 +8,7 @@
 
 | Zone | Contenu |
 |---|---|
-| Premier écran, à gauche | « N valeurs dans PostgreSQL. », dernière écriture, pouls des écritures sur 24 h (une case par heure), trajet de la requête navigateur → Clever Cloud → Node.js → PostgreSQL, durée SQL mesurée |
+| Premier écran, à gauche | « N valeurs dans PostgreSQL. », dernière écriture, pouls des écritures sur 24 h (une case par heure), trajet de la requête navigateur → Clever Cloud → Node.js (`instance #N`) → PostgreSQL, « Une seule requête SQL pour cette page. » |
 | Premier écran, à droite | Terminal psql : `SELECT` des 6 dernières lignes, `(N lignes)`, `Temps : x ms`, puis un `INSERT INTO values VALUES ('…')` saisissable (Entrée → `INSERT 0 1`). Dessous : variables de démo et variables injectées par Clever Cloud |
 | Sous le premier écran | Bloc certification Clever Cloud Academy (badge animé, deux parcours, « Passer la certification ») |
 | Plus bas | Toutes les valeurs (document JSONB, âge, suppression → `DELETE 1` dans le terminal) |

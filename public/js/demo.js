@@ -110,6 +110,7 @@
       '<button class="cc-btn cc-btn--sm cc-btn--danger" type="button" data-delete="' + data.id + '">Supprimer</button>';
     li.querySelector('.nd-row__value').textContent = data.value;
     li.querySelector('.nd-row__json').textContent = '{"value": ' + JSON.stringify(data.value) + '}';
+    li.querySelector('.nd-row__json').title = '{"value": ' + JSON.stringify(data.value) + '}';
     li.querySelector('button').setAttribute('aria-label', 'Supprimer la valeur ' + data.id);
     list.insertBefore(li, list.firstChild);
 
@@ -120,6 +121,7 @@
       [String(data.id), data.value, "à l'instant"].forEach(function (t) {
         var td = document.createElement('td');
         td.textContent = t;
+        td.title = t;
         tr.appendChild(td);
       });
       termRows.insertBefore(tr, termRows.firstChild);

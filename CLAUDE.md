@@ -115,7 +115,7 @@ Scénario vidéo : écrire une valeur dans le terminal → `ANNOUNCEMENT` + `REA
 bin/www           → point d'entrée HTTP (démarrage serveur)
 app.js            → setup Express, trust proxy, en-têtes de sécurité (CSP), helper `ago`, gestionnaire d'erreurs
 config.js         → variables de démo (APP_ENV, ANNOUNCEMENT, READ_ONLY, VALUE_MAX_LENGTH), parsing robuste
-db.js             → pool PostgreSQL (PG_POOL_MAX), schéma idempotent (fail-fast), overview (liste + pouls 24 h + durée SQL), insert/remove, platformInfo
+db.js             → pool PostgreSQL (PG_POOL_MAX), schéma idempotent (fail-fast), overview (liste + compteurs + pouls 24 h en une seule requête, durée mesurée), idleTimeout 60 s, insert/remove, platformInfo
 routes/routes.js  → GET /, GET /health, POST /values, DELETE /values/:id (garde Sec-Fetch-Site + READ_ONLY), GET /prime (si ENABLE_PRIME=true)
 views/            → layout (topbar, bandeau ANNOUNCEMENT, footer), index (premier écran + terminal psql + certification + liste), error
 views/partials/   → logo et badge SVG (inlinés via app.locals), cert.pug (bloc certification)
@@ -131,7 +131,7 @@ clevercloud/node.json → config historique (redondante avec scripts.start)
 ## 🎨 Design — Clever Brand Kit
 
 - Système visuel unique des démos Clever Cloud : Plus Jakarta Sans, navy `#13172e`, dégradé Clever (`#f57461 → #cb1c42 → #a51050`), JetBrains Mono pour les valeurs techniques.
-- Structure de la page d'accueil (refonte vidéo) : topbar → bandeau ANNOUNCEMENT → premier écran (titre « N valeurs dans PostgreSQL. », pouls des écritures 24 h, trajet de la requête, durée SQL ; terminal psql avec SELECT réel, INSERT saisissable, variables de démo et variables Clever) → bloc certification (`partials/cert.pug`, badge animé, une seule inclusion par page à cause des `id` SVG) → « Toutes les valeurs » → footer.
+- Structure de la page d'accueil (refonte vidéo) : topbar → bandeau ANNOUNCEMENT → premier écran (titre « N valeurs dans PostgreSQL. », pouls des écritures 24 h, trajet de la requête (`instance #N` seulement, le nom Pokémon reste dans le panneau), « Une seule requête SQL pour cette page. » ; terminal psql (seule mesure affichée : `Temps : x ms`) avec SELECT réel, INSERT saisissable, variables de démo et variables Clever) → bloc certification (`partials/cert.pug`, badge animé, une seule inclusion par page à cause des `id` SVG) → « Toutes les valeurs » → footer.
 - Contraste : texte blanc sur dégradé assombri (`#d14836 → #cb1c42 → #a51050`), ligatures JetBrains Mono désactivées dans le terminal (`=>` reste lisible), `prefers-reduced-motion` respecté.
 - Les variables injectées par Clever (`CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID`) sont lues par `db.js › platformInfo` et affichées sous le terminal ; absentes (local) → « injecté au déploiement ». Sans `APP_ID` → pastille « Local · hors Clever Cloud ».
 - Spec : `docs/superpowers/specs/2026-09-06-clever-brand-design.md`.

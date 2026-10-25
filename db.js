@@ -11,8 +11,9 @@ CREATE TABLE IF NOT EXISTS values (
 ALTER TABLE values ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 `;
 
-// Compteurs du premier écran : total, dernière écriture, écritures par heure sur 24 h.
-var statsText = `
+// Une seule requête pour la page : total, dernière écriture, écritures par heure sur 24 h
+// et les LIST_LIMIT lignes les plus récentes (agrégées en JSON).
+var overviewText = `
 SELECT (SELECT count(*)::int FROM values) AS total,
        (SELECT max(created_at) FROM values) AS last_at,
        ARRAY(
@@ -23,7 +24,10 @@ SELECT (SELECT count(*)::int FROM values) AS total,
           AND v.created_at <  date_trunc('hour', now()) - (h - 1) * interval '1 hour'
          GROUP BY h
          ORDER BY h DESC
-       ) AS hourly
+       ) AS hourly,
+       (SELECT coalesce(json_agg(r ORDER BY r.id DESC), '[]'::json)
+        FROM (SELECT id, data->>'value' AS value, created_at
+              FROM values ORDER BY id DESC LIMIT $1) AS r) AS rows
 `;
 
 var LIST_LIMIT = 200;
@@ -50,6 +54,7 @@ function platformInfo() {
     instance: e.INSTANCE_NUMBER != null
       ? '#' + e.INSTANCE_NUMBER + (e.CC_PRETTY_INSTANCE_NAME ? ' · ' + e.CC_PRETTY_INSTANCE_NAME : '')
       : null,
+    instanceNumber: e.INSTANCE_NUMBER != null ? '#' + e.INSTANCE_NUMBER : null,
     instanceType: e.INSTANCE_TYPE || null,
     commit: short(e.CC_COMMIT_ID, 7),
     deployment: short(e.CC_DEPLOYMENT_ID, 16),
@@ -71,7 +76,7 @@ module.exports = {
     pool = new pg.Pool({
       connectionString: process.env.POSTGRESQL_ADDON_DIRECT_URI || process.env.POSTGRESQL_ADDON_URI,
       max: Number.isInteger(max) && max > 0 ? max : 4,
-      idleTimeoutMillis: 10000,
+      idleTimeoutMillis: 60000, // garde la connexion chaude entre deux rechargements (« Temps » stable à l'écran)
       connectionTimeoutMillis: 5000,
     });
     // Une connexion idle coupée par l'add-on ne doit pas tuer le process
@@ -105,17 +110,13 @@ module.exports = {
 
   platformInfo: platformInfo,
 
-  // Liste + compteurs ; sqlMs = durée des deux requêtes (affichée façon \timing de psql)
+  // Liste + compteurs en une requête ; sqlMs = sa durée (affichée façon \timing de psql)
   overview: function () {
     var start = process.hrtime.bigint();
-    var list = pool.query(
-      "SELECT id, data->>'value' AS value, created_at FROM values ORDER BY id DESC LIMIT $1",
-      [LIST_LIMIT]
-    );
-    return Promise.all([list, pool.query(statsText)]).then(function (out) {
-      var s = out[1].rows[0];
+    return pool.query(overviewText, [LIST_LIMIT]).then(function (res) {
+      var s = res.rows[0];
       return {
-        values: out[0].rows.map(toRow),
+        values: s.rows.map(toRow),
         sqlMs: elapsedMs(start),
         total: s.total,
         lastAt: s.last_at,
