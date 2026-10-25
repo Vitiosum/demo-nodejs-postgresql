@@ -1,0 +1,16 @@
+//- Bloc certification Clever Cloud Academy. Le badge SVG porte des id : une seule inclusion par page.
+section.nd-cert(aria-labelledby="cert-title")
+  != ccBadge
+  div
+    h2#cert-title Cette app tourne sur Clever Cloud. Vous aussi, certifiez-vous.
+    p.nd-cert__lead Deux parcours officiels de la Clever Cloud Academy, gratuits et en ligne. À la clé : un badge vérifiable à afficher sur LinkedIn.
+    .nd-cert__tracks
+      a(href="https://academy.clever.cloud/course/view.php?id=2" target="_blank" rel="noopener")
+        b Cloud Computing Fundamentals
+        span Concepts, architectures, IaaS, PaaS et FaaS.
+      a(href="https://academy.clever.cloud/course/section.php?id=18" target="_blank" rel="noopener")
+        b Advanced Deployment
+        span Déployer, scaler et opérer une app Node.js comme celle-ci.
+    .nd-cert__cta
+      a.cc-btn.cc-btn--gradient(href="https://academy.clever.cloud/" target="_blank" rel="noopener") Passer la certification
+      small academy.clever.cloud

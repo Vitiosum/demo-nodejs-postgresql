@@ -3,6 +3,7 @@ var path          = require('path');
 var fs            = require('fs');
 var logger        = require('morgan');
 var pg       = require('./db');
+var cfg      = require('./config');
 
 var routes = require('./routes/routes');
 
@@ -49,14 +50,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Infos plateforme disponibles dans tous les templates (topbar, page d'erreur)
 app.use(function(req, res, next) {
   res.locals.cc = pg.platformInfo();
+  res.locals.cfg = cfg;
   next();
 });
+
+// Âge relatif en français pour les vues (« il y a 3 min »)
+app.locals.ago = function (date) {
+  if (!date) return '';
+  var s = Math.max(0, Math.round((Date.now() - new Date(date).getTime()) / 1000));
+  if (s < 60) return "à l'instant";
+  if (s < 3600) return 'il y a ' + Math.floor(s / 60) + ' min';
+  if (s < 86400) return 'il y a ' + Math.floor(s / 3600) + ' h';
+  return 'il y a ' + Math.floor(s / 86400) + ' j';
+};
 
 app.use('/', routes);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-  var err = new Error('Not Found');
+  var err = new Error('Page introuvable');
   err.status = 404;
   next(err);
 });

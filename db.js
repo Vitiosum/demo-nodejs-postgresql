@@ -1,35 +1,48 @@
 var pg = require('pg');
 var pool;
-var pgVersion = null;
+var meta = { pgVersion: null, database: null };
 
-var createTableText = `
-
+// Schéma idempotent : created_at est ajouté aux tables créées avant la refonte.
+var schemaText = `
 CREATE TABLE IF NOT EXISTS values (
   id SERIAL PRIMARY KEY,
   data JSONB
 );
+ALTER TABLE values ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 `;
 
-function loadPgVersion() {
-  pool.query('SELECT version()', [], function (err, res) {
-    if (!err && res.rows[0]) {
-      pgVersion = (res.rows[0].version.match(/PostgreSQL (\S+)/) || [])[1] || null;
-    }
-  });
+// Compteurs du premier écran : total, dernière écriture, écritures par heure sur 24 h.
+var statsText = `
+SELECT (SELECT count(*)::int FROM values) AS total,
+       (SELECT max(created_at) FROM values) AS last_at,
+       ARRAY(
+         SELECT count(v.id)::int
+         FROM generate_series(23, 0, -1) AS h
+         LEFT JOIN values v
+           ON v.created_at >= date_trunc('hour', now()) - h * interval '1 hour'
+          AND v.created_at <  date_trunc('hour', now()) - (h - 1) * interval '1 hour'
+         GROUP BY h
+         ORDER BY h DESC
+       ) AS hourly
+`;
+
+var LIST_LIMIT = 200;
+
+function elapsedMs(start) {
+  return Number(process.hrtime.bigint() - start) / 1e6;
 }
 
-function rowsLabel(n) {
-  return n + ' ligne' + (n > 1 ? 's' : '');
+function toRow(r) {
+  return { id: r.id, value: r.value, createdAt: r.created_at };
 }
 
-// Ce que Clever Cloud injecte dans l'environnement de l'app (panneau « Vu depuis Clever Cloud »).
-// Sans APP_ID → exécution locale : le panneau affiche « Local · hors Clever Cloud ».
-function platformInfo(rowCount) {
+// Ce que Clever Cloud injecte dans l'environnement de l'app.
+// Sans APP_ID → exécution locale : les champs restent null (« injecté au déploiement »).
+function platformInfo() {
   var e = process.env;
   var short = function (v, n) { return v ? String(v).slice(0, n) : null; };
-  var nodeMajor = process.versions.node.split('.')[0];
   var expressVersion = require('express/package.json').version;
-  var pgMajor = pgVersion ? pgVersion.split('.')[0] : null;
+  var pgMajor = meta.pgVersion ? meta.pgVersion.split('.')[0] : null;
   return {
     live: !!e.APP_ID,
     appName: e.CC_APP_NAME || null,
@@ -40,87 +53,91 @@ function platformInfo(rowCount) {
     instanceType: e.INSTANCE_TYPE || null,
     commit: short(e.CC_COMMIT_ID, 7),
     deployment: short(e.CC_DEPLOYMENT_ID, 16),
-    pgVersion: pgVersion,
-    rows: rowCount != null ? rowsLabel(rowCount) : null,
+    pgVersion: meta.pgVersion,
+    pgMajor: pgMajor,
+    database: meta.database,
     nodeVersion: process.version,
+    nodeMajor: process.versions.node.split('.')[0],
     expressVersion: expressVersion,
-    stack: 'Node.js ' + nodeMajor + ' · Express ' + expressVersion.split('.')[0] + ' · PostgreSQL' + (pgMajor ? ' ' + pgMajor : ''),
+    stack: 'Node.js ' + process.versions.node.split('.')[0] + ' · Express ' + expressVersion.split('.')[0] + ' · PostgreSQL' + (pgMajor ? ' ' + pgMajor : ''),
   };
 }
 
 module.exports = {
-    // Pool dimensionné pour le plan add-on : règle pool × instances ≤ connexions du plan
-    // (plan DEV PostgreSQL = 5). PG_POOL_MAX permet d'ajuster sans toucher au code.
-    connectDB : function() {
-        pool = new pg.Pool({
-            connectionString: process.env.POSTGRESQL_ADDON_DIRECT_URI || process.env.POSTGRESQL_ADDON_URI,
-            max: Number(process.env.PG_POOL_MAX) || 4,
-            idleTimeoutMillis: 10000,
-            connectionTimeoutMillis: 5000,
-        });
-        // Une connexion idle coupée par l'add-on ne doit pas tuer le process
-        pool.on('error', function (err) {
-            console.error('[pg] idle client error', err.message);
-        });
-        pool.query(createTableText, [], function (err) {
-            if (err) {
-                // Fail-fast explicite au boot : sans schéma, l'app ne peut rien servir
-                console.error('[db] init schema impossible :', err.message);
-                process.exit(1);
-            }
-            loadPgVersion();
-        });
-    },
+  // Pool dimensionné pour le plan add-on : règle pool × instances ≤ connexions du plan.
+  // PG_POOL_MAX permet d'ajuster sans toucher au code (valeur invalide → 4).
+  connectDB: function () {
+    var max = Number(process.env.PG_POOL_MAX);
+    pool = new pg.Pool({
+      connectionString: process.env.POSTGRESQL_ADDON_DIRECT_URI || process.env.POSTGRESQL_ADDON_URI,
+      max: Number.isInteger(max) && max > 0 ? max : 4,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000,
+    });
+    // Une connexion idle coupée par l'add-on ne doit pas tuer le process
+    pool.on('error', function (err) {
+      console.error('[pg] idle client error', err.message);
+    });
+    return pool.query(schemaText)
+      .then(function () {
+        return pool.query("SELECT current_setting('server_version') AS v, current_database() AS db");
+      })
+      .then(function (res) {
+        meta.pgVersion = (res.rows[0].v || '').split(' ')[0] || null;
+        meta.database = res.rows[0].db || null;
+      })
+      .catch(function (err) {
+        // Fail-fast explicite au boot : sans schéma, l'app ne peut rien servir
+        console.error('[db] init schema impossible :', err.message);
+        process.exit(1);
+      });
+  },
 
-    // Utilisé par /health : SELECT 1 avec timeout court
-    ping : function() {
-        return pool.query({ text: 'SELECT 1', query_timeout: 2000 });
-    },
+  // Utilisé par /health : SELECT 1 avec timeout court
+  ping: function () {
+    return pool.query({ text: 'SELECT 1', query_timeout: 2000 });
+  },
 
-    // Utilisé à l'arrêt (SIGTERM) pour rendre les connexions proprement
-    close : function() {
-        return pool ? pool.end() : Promise.resolve();
-    },
+  // Utilisé à l'arrêt (SIGTERM) pour rendre les connexions proprement
+  close: function () {
+    return pool ? pool.end() : Promise.resolve();
+  },
 
-    platformInfo : platformInfo,
+  platformInfo: platformInfo,
 
-    getVal : function(result) {
-        pool.query('SELECT * FROM values ORDER BY id;', [], (err, res) => {
-            if (err) {
-                console.error('[db] lecture impossible :', err.message);
-                result.status(500).render('error', { message: 'Erreur base de données', error: { status: 500 } });
-                return
-            }
-            var values = res.rows.map(function (row) {
-                return { id: row.id, value: row.data && row.data.value };
-            });
-            result.render('index', {
-                title: 'Node.js + PostgreSQL · Démo Clever Cloud',
-                values: values,
-                cc: platformInfo(res.rows.length)
-            });
-          });
-    },
+  // Liste + compteurs ; sqlMs = durée des deux requêtes (affichée façon \timing de psql)
+  overview: function () {
+    var start = process.hrtime.bigint();
+    var list = pool.query(
+      "SELECT id, data->>'value' AS value, created_at FROM values ORDER BY id DESC LIMIT $1",
+      [LIST_LIMIT]
+    );
+    return Promise.all([list, pool.query(statsText)]).then(function (out) {
+      var s = out[1].rows[0];
+      return {
+        values: out[0].rows.map(toRow),
+        sqlMs: elapsedMs(start),
+        total: s.total,
+        lastAt: s.last_at,
+        hourly: s.hourly,
+      };
+    });
+  },
 
-    sendVal : function(val, res) {
-        pool.query('INSERT INTO values(data) VALUES($1) RETURNING *', [{'value': val}], (err, queryData) => {
-            if (err) {
-                console.error('[db] insertion impossible :', err.message);
-                res.status(500).json({ status: 'error', value: 'Erreur base de données' });
-                return
-            }
-            var result = queryData.rows[0];
-            res.status(201).json({ status: 'ok', value: result.data.value, id: result.id });
-          });
-    },
+  insert: function (value) {
+    var start = process.hrtime.bigint();
+    return pool.query(
+      "INSERT INTO values(data) VALUES($1) RETURNING id, data->>'value' AS value, created_at",
+      [{ value: value }]
+    ).then(function (res) {
+      return { row: toRow(res.rows[0]), sqlMs: elapsedMs(start) };
+    });
+  },
 
-    delVal : function(id, callback) {
-        pool.query('DELETE FROM values WHERE id = $1', [id], (err, result) => {
-            if (err) {
-                console.error('[db] suppression impossible :', err.message);
-                return callback(err);
-            }
-            callback(null, result.rowCount);
-          });
-    }
+  remove: function (id) {
+    var start = process.hrtime.bigint();
+    return pool.query('DELETE FROM values WHERE id = $1', [id]).then(function (res) {
+      return { count: res.rowCount, sqlMs: elapsedMs(start) };
+    });
+  },
 };

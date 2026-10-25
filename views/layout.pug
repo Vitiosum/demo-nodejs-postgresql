@@ -17,11 +17,12 @@ html(lang="fr")
         a(href="https://www.clever.cloud" target="_blank" rel="noopener" aria-label="Clever Cloud")
           != ccLogo
         span.cc-topbar__sep
-        .cc-topbar__demo
+        a.cc-topbar__demo(href="/")
           small Démo
           | Node.js + PostgreSQL
         span.cc-topbar__spacer
-        nav.cc-topbar__nav(aria-label="Statut")
+        nav.cc-topbar__nav(aria-label="Navigation")
+          a.cc-topbar__link(href="/#values-title") Valeurs
           span.cc-pill.cc-pill--mono.cc-hide-sm= cc.stack
           if cc.live
             span.cc-pill.cc-pill--live
@@ -32,6 +33,12 @@ html(lang="fr")
               span.cc-dot.cc-dot--muted
               | Local · hors Clever Cloud
           a.cc-pill.cc-pill--gradient(href="https://academy.clever.cloud/" target="_blank" rel="noopener") Se certifier ↗
+
+    if cfg.announcement
+      .nd-announce(role="status")
+        .cc-container
+          code ANNOUNCEMENT
+          span= cfg.announcement
 
     main
       block content
@@ -49,7 +56,7 @@ html(lang="fr")
           div
             h4 Documentation
             ul
-              li: a(href="https://www.clever.cloud/developers/doc/applications/javascript/nodejs/" target="_blank" rel="noopener") Runtime Node.js
+              li: a(href="https://www.clever.cloud/developers/doc/deploy/applications/nodejs/" target="_blank" rel="noopener") Runtime Node.js
               li: a(href="https://www.clever.cloud/developers/doc/addons/postgresql/" target="_blank" rel="noopener") Add-on PostgreSQL
               li: a(href="https://console.clever-cloud.com" target="_blank" rel="noopener") Console Clever Cloud
           div

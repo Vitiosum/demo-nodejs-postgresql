@@ -1,118 +1,150 @@
 extends layout
 
-mixin kv(label, value)
+mixin platformVar(label, value)
   div
     dt= label
     if value
       dd= value
     else
-      dd.is-empty —
+      dd.is-empty injecté au déploiement
 
 block content
-  - var n = values.length
-  - var rowsLabel = n + ' ligne' + (n > 1 ? 's' : '')
+  - var d = data
+  - var n = d.total
+  - var fmt = function (x) { return Number(x).toLocaleString('fr-FR', { maximumFractionDigits: 2 }); }
+  - var db = cc.database || 'demo'
+  - var peak = Math.max.apply(null, d.hourly.concat([1]))
+  - var termRows = d.values.slice(0, 6)
 
-  section.cc-hero
-    .cc-container
-      .cc-eyebrow.cc-reveal(style="--i:0") Runtime Node.js · Add-on PostgreSQL
-      h1.cc-hero__title.cc-reveal(style="--i:1") Node.js + PostgreSQL, #[span.cc-grad-text déployé en un push.]
-      p.cc-hero__lead.cc-reveal(style="--i:2") Une app Express connectée à un add-on PostgreSQL managé. #[strong Aucun Dockerfile, aucun serveur à gérer] : Clever Cloud détecte le runtime, injecte les variables de connexion et redéploie à chaque #[span.cc-kbd git push].
-      ul.cc-facts.cc-reveal(style="--i:3")
-        li Build automatique depuis Git
-        li Add-on PostgreSQL lié
-        li HTTPS et domaine inclus
-        li Scaling horizontal en un clic
-
-  section.cc-section(style="padding-top:0")
-    .cc-container
-      .cc-cert.cc-reveal(style="--i:4")
-        != ccBadge
-        div
-          .cc-cert__kicker Clever Cloud Academy
-          h2.cc-cert__title Devenez #[span.cc-grad-text certifié Clever Cloud]
-          p.cc-cert__text Deux parcours officiels, de la théorie au déploiement avancé. Le badge numérique est délivré automatiquement dès la validation.
-          .cc-tracks
-            a.cc-track(href="https://academy.clever.cloud/course/view.php?id=2" target="_blank" rel="noopener")
-              span.cc-track__num 01
-              span
-                span.cc-track__name Cloud Computing Fundamentals
-                br
-                span.cc-track__desc Concepts, architectures, modèles IaaS · PaaS · FaaS.
-            a.cc-track(href="https://academy.clever.cloud/course/section.php?id=18" target="_blank" rel="noopener")
-              span.cc-track__num 02
-              span
-                span.cc-track__name Advanced Deployment
-                br
-                span.cc-track__desc Maîtriser le déploiement d'applications sur Clever Cloud.
-          .cc-cert__actions
-            a.cc-btn.cc-btn--gradient(href="https://academy.clever.cloud/" target="_blank" rel="noopener") Obtenir ma certification #[span.cc-btn__arrow →]
-            span.cc-cert__note academy.clever.cloud · développeurs, partenaires, équipes
-
-  section.cc-section
-    .cc-container
-      .cc-grid.cc-grid--2
-        .cc-card.cc-card--pad.cc-reveal(style="--i:5")
-          .cc-section__head
-            h2.cc-section__title Valeurs stockées
-            span.cc-section__sub #[span#count= rowsLabel] · table #[span.cc-kbd values]
-          form#createForm.cc-form-row(method="post" action="/values")
-            input#value.cc-input(type="text" name="value" placeholder="Une valeur à persister…" maxlength="32" autocomplete="off" aria-label="Valeur")
-            button#create.cc-btn.cc-btn--gradient(type="submit") Ajouter
-          ul#values.cc-list.cc-mt-2
-            if n > 0
-              each row in values
-                li.cc-row(id='row-' + row.id data-id=row.id)
-                  span.cc-row__id ##{row.id}
-                  .cc-row__main
-                    .cc-row__title= row.value
-                    .cc-row__meta JSONB · PostgreSQL
-                  .cc-row__actions
-                    button.cc-btn.cc-btn--sm.cc-btn--danger(type="button" data-delete=row.id) Supprimer
+  .cc-container
+    section.nd-board
+      .nd-board__main.cc-reveal(style="--i:0")
+        h1.nd-title#nd-title(data-total=n)
+          | #{n} valeur#{n > 1 ? 's' : ''} dans PostgreSQL.
+        p.nd-meta
+          span#nd-last
+            if d.lastAt
+              | dernière écriture #[b= ago(d.lastAt)]
             else
-              li.cc-empty
-                strong Aucune valeur pour l'instant
-                | Ajoutez-en une ci-dessus : elle sera persistée dans PostgreSQL.
+              | aucune écriture
+          span table #[b values] · JSONB
+          if cfg.readOnly
+            span.nd-lock Lecture seule · READ_ONLY=true
+        p.nd-lead Une app Express sur le runtime Node.js de Clever Cloud, branchée sur un add-on PostgreSQL managé. La plateforme installe les dépendances, injecte l'URI de la base et redéploie à chaque #[span.cc-kbd git push].
+        .nd-cta
+          if cfg.readOnly
+            a.cc-btn.cc-btn--gradient(href="#values-title") Parcourir les valeurs
+          else
+            a.cc-btn.cc-btn--gradient(href="#psql-input") Écrire une valeur
+          a.cc-btn(href="#cert-title") Se certifier Clever Cloud ↓
 
-        .cc-platform.cc-reveal(style="--i:6")
-          .cc-platform__head
-            h3 Vu depuis Clever Cloud
-            if cc.live
-              span.cc-pill.cc-pill--ok
-                span.cc-dot
-                | Production
+        figure.nd-pulse(aria-label="Écritures par heure sur les dernières 24 heures")
+          figcaption Écritures, dernières 24 h
+          ol
+            each c, i in d.hourly
+              li(style="--a:" + (c === 0 ? 0 : (0.25 + 0.75 * c / peak).toFixed(2)) class=(i === 23 ? 'is-now' : null) title=(c + ' écriture' + (c > 1 ? 's' : '') + (i === 23 ? ' cette heure-ci' : ' il y a ' + (23 - i) + ' h')))
+          .nd-pulse__axis
+            span −24 h
+            span maintenant
+
+        ol.nd-trace(aria-label="Trajet de cette page")
+          li
+            b Navigateur
+            span HTTPS
+          li
+            b Clever Cloud
+            span reverse proxy · TLS
+          li
+            b Node.js #{cc.nodeMajor}
+            span= cc.instance ? 'instance ' + cc.instance : 'Express ' + cc.expressVersion.split('.')[0] + ' · local'
+          li
+            b PostgreSQL#{cc.pgMajor ? ' ' + cc.pgMajor : ''}
+            span= cc.live ? 'add-on · ' + db : 'base ' + db
+        p.nd-timing Pour afficher cette page, Node.js a interrogé PostgreSQL en #[b #{fmt(sqlMs)} ms].
+
+      aside.nd-term.cc-reveal(style="--i:1" aria-label="Session psql sur la base de l'application")
+        .nd-term__bar
+          i
+          i
+          i
+          span psql · #{cc.appName || 'demo-nodejs-postgresql'}
+          span.nd-env(class=(cfg.appEnv === 'production' ? 'is-production' : null))= cfg.appEnv
+        .nd-term__body
+          p.nd-cmd
+            span.nd-prompt #{db}=>
+            |  SELECT id, value, created_at FROM values ORDER BY id DESC LIMIT 6;
+          table.nd-psql
+            thead
+              tr
+                th(scope="col") id
+                th(scope="col") value
+                th(scope="col") created_at
+            tbody#nd-psql-rows
+              each row in termRows
+                tr(data-id=row.id)
+                  td= row.id
+                  td= row.value
+                  td= ago(row.createdAt)
+          p.nd-out
+            span#nd-rows (#{n} ligne#{n > 1 ? 's' : ''})
+            span Temps : #{fmt(sqlMs)} ms
+          ol#nd-log.nd-log(aria-live="polite")
+          if cfg.readOnly
+            p.nd-cmd.nd-cmd--locked
+              span.nd-prompt #{db}=>
+              |  -- READ_ONLY=true : écritures refusées par l'application
+          else
+            form#createForm.nd-insert(method="post" action="/values")
+              label.nd-prompt(for="psql-input") #{db}=>
+              span.nd-insert__sql INSERT INTO values VALUES ('
+              input#psql-input(type="text" name="value" maxlength=cfg.valueMaxLength autocomplete="off" spellcheck="false" placeholder="votre valeur" aria-describedby="nd-counter")
+              span.nd-insert__sql ');
+              .nd-insert__foot
+                span#nd-counter.nd-counter(data-max=cfg.valueMaxLength) 0/#{cfg.valueMaxLength} caractères · VALUE_MAX_LENGTH
+                button#create.nd-insert__go(type="submit") Entrée ↵
+        ul.nd-config(aria-label="Variables d'environnement lues par l'application")
+          li
+            span APP_ENV
+            b= cfg.appEnv
+          li
+            span READ_ONLY
+            b= cfg.readOnly ? 'true' : 'false'
+          li
+            span VALUE_MAX_LENGTH
+            b= cfg.valueMaxLength
+          li
+            span ANNOUNCEMENT
+            if cfg.announcement
+              b définie
             else
-              span.cc-pill.cc-pill--muted Local · hors Clever Cloud
-          dl.cc-kv
-            +kv('Application', cc.appName)
-            +kv('Instance', cc.instance)
-            +kv('Type d\'instance', cc.instanceType)
-            +kv('Commit déployé', cc.commit)
-            +kv('App ID', cc.appId)
-            +kv('Déploiement', cc.deployment)
-            div
-              dt PostgreSQL
-              dd
-                if cc.pgVersion
-                  | #{cc.pgVersion} · 
-                span#pg-rows= rowsLabel
-            +kv('Runtime', 'Node.js ' + cc.nodeVersion + ' · Express ' + cc.expressVersion)
-          .cc-platform__foot Variables injectées automatiquement par la plateforme : #[a(href="https://www.clever.cloud/developers/doc/reference/reference-environment-variables/" target="_blank" rel="noopener") référence].
+              b.is-empty non définie
+        dl.nd-platform
+          +platformVar('Instance', cc.instance)
+          +platformVar('Type d\'instance', cc.instanceType)
+          +platformVar('Commit déployé', cc.commit)
+          +platformVar('Déploiement', cc.deployment)
 
-  section.cc-section
-    .cc-container
-      .cc-section__head.cc-reveal(style="--i:7")
-        h2.cc-section__title Ce que Clever Cloud fait pour cette app
-        span.cc-section__sub Sans devops, sans Dockerfile
-      .cc-grid.cc-grid--3
-        .cc-card.cc-card--accent.cc-reveal(style="--i:8")
-          .cc-card__label Déploiement
-          .cc-card__title.cc-mt-1 git push → build → run
-          p.cc-card__hint Runtime détecté, dépendances installées, redémarrage sans interruption.
-        .cc-card.cc-card--accent.cc-reveal(style="--i:9")
-          .cc-card__label Données
-          .cc-card__title.cc-mt-1 PostgreSQL managé
-          p.cc-card__hint Sauvegardes quotidiennes, URI directe, montée de gamme sans migration.
-        .cc-card.cc-card--accent.cc-reveal(style="--i:10")
-          .cc-card__label Confiance
-          .cc-card__title.cc-mt-1 Hébergé en France
-          p.cc-card__hint ISO 27001, HDS, hors de portée des lois extraterritoriales.
+    include partials/cert
+
+    section.nd-values(aria-labelledby="values-title")
+      .nd-values__head
+        h2#values-title.cc-section__title Toutes les valeurs
+        span.cc-section__sub Chaque ligne est un document JSONB de la table #[span.cc-kbd values]
+      ul#values.nd-rows
+        if d.values.length
+          each row in d.values
+            li.nd-row(id='row-' + row.id data-id=row.id)
+              span.nd-row__id ##{row.id}
+              .nd-row__main
+                .nd-row__value= row.value
+                code.nd-row__json {"value": #{JSON.stringify(row.value)}}
+              span.nd-row__age= ago(row.createdAt)
+              if !cfg.readOnly
+                button.cc-btn.cc-btn--sm.cc-btn--danger(type="button" data-delete=row.id aria-label='Supprimer la valeur ' + row.id) Supprimer
+        else
+          li.nd-empty
+            strong Aucune valeur pour l'instant
+            | Écrivez-en une dans le terminal ci-dessus : elle sera persistée dans PostgreSQL.
+      if n > d.values.length
+        p.nd-values__more #{d.values.length} valeurs les plus récentes affichées sur #{n}.
+  div(style="height: 64px")
