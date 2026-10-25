@@ -1,101 +1,119 @@
-# Node.js + PostgreSQL — Full-stack demo on Clever Cloud
+# Node.js + PostgreSQL — démo Clever Cloud
 
-> A simple Express app connected to a PostgreSQL add-on, demonstrating Node.js + database deployment on Clever Cloud.
+> Une app Express sur le runtime Node.js de Clever Cloud, branchée sur un add-on PostgreSQL managé. Le premier écran est un terminal psql qui lit et écrit pour de vrai dans la base.
 
 ---
 
-## Deploy on Clever Cloud
+## Ce que montre la page
 
-1. Fork this repository
-2. In the Clever Cloud console, create a new **Node.js** application — connect your forked repo
-3. Add a **PostgreSQL** add-on and link it to your app — `POSTGRESQL_ADDON_URI` (and `POSTGRESQL_ADDON_DIRECT_URI` if direct access is enabled) are injected automatically
-4. Set `NODE_ENV=production` and, recommended, `CC_HEALTH_CHECK_PATH=/health` (see below)
-5. Push → Clever Cloud deploys automatically
+| Zone | Contenu |
+|---|---|
+| Premier écran, à gauche | « N valeurs dans PostgreSQL. », dernière écriture, pouls des écritures sur 24 h (une case par heure), trajet de la requête navigateur → Clever Cloud → Node.js → PostgreSQL, durée SQL mesurée |
+| Premier écran, à droite | Terminal psql : `SELECT` des 6 dernières lignes, `(N lignes)`, `Temps : x ms`, puis un `INSERT INTO values VALUES ('…')` saisissable (Entrée → `INSERT 0 1`). Dessous : variables de démo et variables injectées par Clever Cloud |
+| Sous le premier écran | Bloc certification Clever Cloud Academy (badge animé, deux parcours, « Passer la certification ») |
+| Plus bas | Toutes les valeurs (document JSONB, âge, suppression → `DELETE 1` dans le terminal) |
 
-> **Why direct hostname?** The app prefers the direct connection URI (`POSTGRESQL_ADDON_DIRECT_URI`) when available and falls back to `POSTGRESQL_ADDON_URI`. Enable "Direct hostname and port" in the add-on settings in the Clever Cloud console.
+Boutons du premier écran : « Écrire une valeur » (focus sur le terminal) et « Se certifier Clever Cloud ↓ » (ancre vers le bloc certification).
+
+---
+
+## Déployer sur Clever Cloud
+
+```bash
+clever create --type node demo-nodejs-postgresql
+clever addon create postgresql-addon --plan xxs_sml --option encryption=true demo-nodejs-pg
+clever service link-addon demo-nodejs-pg
+clever env set NODE_ENV production
+clever env set CC_HEALTH_CHECK_PATH /health
+clever env set CC_CACHE_DEPENDENCIES true
+clever deploy
+```
+
+Démarrage : `scripts.start` → `node ./bin/www`. Version Node : `engines.node: "24"`. La table `values` est créée (ou complétée par `created_at`) au démarrage.
+
+### Variables Clever recommandées (preuve doc)
+
+| Variable | Valeur | Pourquoi |
+|---|---|---|
+| `NODE_ENV` | `production` | Doc Node : « You enable production mode by setting the environment variable NODE_ENV=production » (exigence listée dans *Mandatory needs*) |
+| `CC_HEALTH_CHECK_PATH` | `/health` | Doc Node : « If these paths don’t return a 2xx response code, the deployment fails. » `/health` fait un `SELECT 1` réel |
+| `CC_CACHE_DEPENDENCIES` | `true` | Référence des variables : « Enable caching of your build dependencies to speed up following builds. » (défaut `false`) |
+
+À **ne pas** poser :
+- `CC_NODE_BUILD_TOOL=npm-ci` : `npm ci` supprime `node_modules` avant d'installer (doc npm : « If a node_modules is already present, it will be automatically removed before npm ci begins its install »), ce qui annule le cache de dépendances. Le défaut `npm install` (« npm or npm-install : default, uses npm install ») réutilise le cache.
+- `CC_NODE_DEV_DEPENDENCIES` : inutile, le projet n'a aucune `devDependency` (doc : « Development dependencies aren’t automatically installed during the deployment »).
+- `CC_NODE_VERSION` : doublon d'`engines.node`, qui l'emporte (« the system prioritizes the engines.node value in package.json over the CC_NODE_VERSION environment variable when both are set »).
+
+`node_modules/` est dans `.gitignore` et n'est pas versionné (exigence de la doc : « The folder /node_modules is mentioned in your .gitignore file »).
+
+---
+
+## Variables de démo
+
+À montrer dans l'onglet « Variables d'environnement » de la console, puis `clever restart` et rechargement de la page (lues au démarrage).
+
+| Variable | Défaut | Effet visible |
+|---|---|---|
+| `APP_ENV` | `local` | Pastille dans la barre du terminal ; dégradé Clever si `production` |
+| `ANNOUNCEMENT` | vide | Bandeau en haut de toutes les pages (160 caractères max) |
+| `READ_ONLY` | `false` | `true` : pastille « Lecture seule », l'invite `INSERT` devient `-- READ_ONLY=true : écritures refusées`, boutons Supprimer retirés, `POST`/`DELETE` → 403 |
+| `VALUE_MAX_LENGTH` | `32` | Longueur maximale d'une valeur (8 à 280) : compteur `0/32 caractères` sous l'invite, `maxlength` du champ et validation serveur (400 au-delà) |
+
+Valeur invalide (texte, hors bornes, vide) → défaut.
+
+### Scénario vidéo
+
+1. `./scripts/reset-demo.sh` juste avant de tourner (16 valeurs, dates relatives à maintenant).
+2. Montrer le premier écran, taper une valeur dans le terminal, Entrée : la ligne apparaît, le titre passe à 17.
+3. Console → Variables : `ANNOUNCEMENT=Maintenance ce soir à 22 h`, `READ_ONLY=true` → `clever restart` → recharger : bandeau + base gelée.
+4. Remettre `READ_ONLY=false`, `clever restart`.
+5. Cliquer « Se certifier Clever Cloud ↓ ».
+
+---
+
+## Variables de fonctionnement
+
+| Variable | Origine | Rôle |
+|---|---|---|
+| `POSTGRESQL_ADDON_DIRECT_URI` | injectée (accès direct activé) | Lue en priorité |
+| `POSTGRESQL_ADDON_URI` | injectée | Repli |
+| `PORT` | injectée (8080) | Local : 3000 par défaut |
+| `PG_POOL_MAX` | optionnelle | Pool par instance (défaut 4, invalide → 4). Règle : `PG_POOL_MAX × instances` (×2 pendant un redéploiement) ≤ connexions du plan (`xxs_sml` = 45) |
+| `ENABLE_PRIME` | optionnelle | `true` monte `GET /prime` (charge CPU ~6-8 s) le temps d'une démo de charge |
+| `CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `CC_PRETTY_INSTANCE_NAME`, `INSTANCE_TYPE`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID` | injectées | Affichées sous le terminal ; « injecté au déploiement » en local |
+
+---
+
+## Données de démo
+
+- `scripts/demo-seed.sql` : 16 valeurs, `created_at` relatifs à `now()` (14 dans les dernières 24 h), `TRUNCATE … RESTART IDENTITY`.
+- `scripts/reset-demo.sh` : lit `POSTGRESQL_ADDON_URI` de l'app liée via `clever env -F json` (clé `fromAddons[].env[]`, jamais affichée) et rejoue le seed. En local : `DATABASE_URL=postgresql:///demo_node_video ./scripts/reset-demo.sh`.
+
+---
+
+## En local
+
+```bash
+npm install
+createdb demo_node_video
+DATABASE_URL=postgresql:///demo_node_video ./scripts/reset-demo.sh
+POSTGRESQL_ADDON_URI=postgresql:///demo_node_video PORT=8101 NODE_ENV=production \
+  APP_ENV=production ANNOUNCEMENT="Tournage en cours" npm start
+# → http://localhost:8101
+```
+
+Aucun fichier `.env` n'est lu : tout passe par les variables d'environnement, comme sur Clever Cloud.
 
 ---
 
 ## Stack
 
-| Layer     | Technology       |
-|-----------|------------------|
-| Runtime   | Node.js ≥ 20 (`engines.node: ">=20"` — the platform installs the most recent version matching the range, not a pinned LTS; Node 26 on the last deployment) |
-| Framework | Express 5        |
-| Database  | PostgreSQL       |
-| Driver    | pg 8.23          |
-| Design    | Clever Brand Kit (Plus Jakarta Sans, navy #13172e, dégradé Clever) |
+| Couche | Technologie |
+|---|---|
+| Runtime | Node.js 24 (`engines.node`) |
+| Framework | Express 5 |
+| Base | PostgreSQL (`pg` 8) |
+| Templates | Pug 3 |
+| Design | Clever Brand Kit (`public/cc-brand.css`, non modifié) + `public/demo.css` |
 
----
-
-## Features
-
-- Add and delete items from a list
-- PostgreSQL persistence via Clever Cloud add-on
-- Auto-creates the table on first boot if it doesn't exist
-- `/health` endpoint: runs `SELECT 1` against PostgreSQL → `200 {status:"ok",db:"up"}` or `503 {status:"degraded"}`
-- Server-side validation (string, trimmed, ≤ 32 chars; integer ids), real HTTP status codes, security headers (CSP, nosniff, Referrer-Policy, X-Frame-Options), graceful shutdown on `SIGTERM`
-- Optional `GET /prime` CPU-load endpoint, only mounted when `ENABLE_PRIME=true`
-- « Vu depuis Clever Cloud » panel: reads the variables injected by the platform (`CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID`), plus PostgreSQL version and row count — shows « Local · hors Clever Cloud » when run outside the platform
-
----
-
-## Certification Clever Cloud
-
-The home page puts the **Clever Cloud certification** front and center (badge, the two official tracks and a call to action), right under the hero:
-
-- **Cloud Computing Fundamentals** — concepts, architectures, IaaS · PaaS · FaaS models
-- **Advanced Deployment** — mastering application deployment on Clever Cloud
-
-Digital badges are issued automatically once a track is validated: [academy.clever.cloud](https://academy.clever.cloud/).
-
----
-
-## Design
-
-Shared **Clever Brand Kit**: `public/cc-brand.css` (tokens `--cc-*` and components, copied as-is — do not edit), inline SVG logo and certification badge in `views/partials/`, demo-specific styles in `public/demo.css`. Fonts: Plus Jakarta Sans + JetBrains Mono via Google Fonts, with system fallbacks. No new runtime dependency.
-
----
-
-## Local Development
-
-### Prerequisites
-
-- Node.js 20+
-- PostgreSQL running locally
-
-### Run
-
-```bash
-git clone https://github.com/Vitiosum/demo-nodejs-postgresql
-cd demo-nodejs-postgresql
-npm install
-POSTGRESQL_ADDON_URI=postgres://localhost:5432/demo_node npm start
-# → http://localhost:3000   (override with PORT=8081 npm start)
-```
-
-The table `values` is created on first boot. No `.env` file is read: configuration comes from environment variables only, exactly as on Clever Cloud.
-
----
-
-## Environment Variables
-
-| Variable                        | Required    | Description                                                                 |
-|---------------------------------|-------------|-----------------------------------------------------------------------------|
-| `POSTGRESQL_ADDON_DIRECT_URI`   | preferred   | Injected by Clever Cloud when "Direct hostname and port" is enabled          |
-| `POSTGRESQL_ADDON_URI`          | fallback    | Injected by Clever Cloud when the add-on is linked (used if no direct URI)   |
-| `PORT`                          | auto        | Injected by Clever Cloud (8080); local default 3000                          |
-| `NODE_ENV`                      | ✅ set it   | `production` on Clever Cloud (`clever env set NODE_ENV production`); only `development` renders stack traces |
-| `PG_POOL_MAX`                   | optional    | Pool size per instance (default 4). Keep `PG_POOL_MAX × instances ≤` add-on connection limit (DEV plan = 5) |
-| `ENABLE_PRIME`                  | optional    | `true` mounts `GET /prime` (CPU-bound, blocks the event loop ~8 s). Set only during a load demo, then remove |
-| `CC_HEALTH_CHECK_PATH`          | recommended | `/health` so Clever Cloud monitors the DB-backed health endpoint             |
-
----
-
-## Deployment Notes
-
-- The app reads `POSTGRESQL_ADDON_DIRECT_URI` first and falls back to `POSTGRESQL_ADDON_URI`; enabling **"Direct hostname and port"** on the add-on is recommended
-- The table is created automatically at startup if it doesn't exist; if the schema cannot be initialised the process exits with code 1 (fail-fast, visible in deployment logs)
-- No migration tool needed — schema is managed in the app code
-- Start command comes from `scripts.start` (`node ./bin/www`). `clevercloud/node.json` is historical and redundant with it (kept unchanged)
-- On redeploy the platform sends `SIGTERM`: the server stops accepting connections, finishes in-flight requests and closes the PostgreSQL pool
+Sécurité : CSP, `nosniff`, `X-Frame-Options`, garde `Sec-Fetch-Site` sur les écritures, validation serveur, arrêt propre sur `SIGTERM`, `/health` qui interroge PostgreSQL (200 / 503).
