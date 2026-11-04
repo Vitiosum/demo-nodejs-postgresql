@@ -1,6 +1,9 @@
 extends layout
 
-mixin platformVar(label, value)
+//- Le fichier : la machine à écrire est la session psql (Node.js), le meuble à tiroirs est la table
+//- PostgreSQL. Chaque ligne de `values` est une fiche ; un tiroir par heure fait le pouls des écritures.
+
+mixin plate(label, value)
   div
     dt= label
     if value
@@ -8,143 +11,210 @@ mixin platformVar(label, value)
     else
       dd.is-empty injecté au déploiement
 
+mixin tab(row, k)
+  li.fi-tab(data-id=row.id style='--k:' + k)
+    span.fi-tab__head
+      span.fi-tab__id= row.id
+      span.fi-tab__value= row.value
+      time.fi-tab__age(datetime=new Date(row.createdAt).toISOString())= ago(row.createdAt)
+    code.fi-tab__json {"value": #{JSON.stringify(row.value)}}
+
 block content
   - var d = data
   - var n = d.total
   - var fmt = function (x) { return Number(x).toLocaleString('fr-FR', { maximumFractionDigits: 2 }); }
   - var db = cc.database || 'demo'
-  - var peak = Math.max.apply(null, d.hourly.concat([1]))
   - var termRows = d.values.slice(0, 6)
 
   .cc-container
-    section.nd-board
-      .nd-board__main.cc-reveal(style="--i:0")
-        h1.nd-title#nd-title(data-total=n)
-          | #{n} valeur#{n > 1 ? 's' : ''} dans PostgreSQL.
-        p.nd-meta
-          span#nd-last
+    header.fi-head
+      div
+        h1.fi-title#fi-title(data-total=n) #{n} fiche#{n > 1 ? 's' : ''} dans PostgreSQL.
+        p.fi-meta
+          span#fi-last
             if d.lastAt
-              | dernière écriture #[b= ago(d.lastAt)]
+              | dernière fiche rangée #[b= ago(d.lastAt)]
             else
-              | aucune écriture
-          span table #[b values] · JSONB
+              | aucune fiche rangée
+          span table #[b values], documents JSONB
           if cfg.readOnly
-            span.nd-lock Lecture seule · READ_ONLY=true
-        p.nd-lead Une app Express sur le runtime Node.js de Clever Cloud, branchée sur un add-on PostgreSQL managé. La plateforme installe les dépendances, injecte l'URI de la base et redéploie à chaque #[span.cc-kbd git push].
-        .nd-cta
+            span.fi-lock Lecture seule · READ_ONLY=true
+      .fi-head__side
+        p.fi-lead Une app Express sur le runtime Node.js de Clever Cloud, branchée sur un add-on PostgreSQL managé. Chaque ligne de la table est une fiche : la machine la tape, le meuble la range.
+        .fi-cta
           if cfg.readOnly
-            a.cc-btn.cc-btn--gradient(href="#values-title") Parcourir les valeurs
+            a.cc-btn.cc-btn--gradient(href="#values-title") Parcourir les fiches
           else
-            a.cc-btn.cc-btn--gradient(href="#psql-input") Écrire une valeur
+            a.cc-btn.cc-btn--gradient(href="#psql-input") Taper une fiche
           a.cc-btn(href="#cert-title") Se certifier Clever Cloud ↓
 
-        figure.nd-pulse(aria-label="Écritures par heure sur les dernières 24 heures")
-          figcaption Écritures, dernières 24 h
-          ol
-            each c, i in d.hourly
-              li(style="--a:" + (c === 0 ? 0 : (0.25 + 0.75 * c / peak).toFixed(2)) class=[c === 0 ? 'is-zero' : null, i === 23 ? 'is-now' : null] title=(c + ' écriture' + (c > 1 ? 's' : '') + (i === 23 ? ' cette heure-ci' : ' il y a ' + (23 - i) + ' h')))
-          .nd-pulse__axis
-            span −24 h
-            span maintenant
-
-        ol.nd-trace(aria-label="Trajet de cette page")
-          li
-            b Navigateur
-            span HTTPS
-          li
-            b Clever Cloud
-            span reverse proxy · TLS
-          li
-            b Node.js #{cc.nodeMajor}
-            span= cc.instanceNumber ? 'instance ' + cc.instanceNumber : 'Express ' + cc.expressVersion.split('.')[0] + ' · local'
-          li
-            b PostgreSQL#{cc.pgMajor ? ' ' + cc.pgMajor : ''}
-            span= cc.live ? 'add-on · ' + db : 'base ' + db
-        p.nd-timing Une seule requête SQL pour cette page.
-
-      aside.nd-term.cc-reveal(style="--i:1" aria-label="Session psql sur la base de l'application")
-        .nd-term__bar
-          i
-          i
-          i
-          span(title='psql · ' + (cc.appName || 'demo-nodejs-postgresql')) psql · #{cc.appName || 'demo-nodejs-postgresql'}
-          span.nd-env(class=(cfg.appEnv === 'production' ? 'is-production' : null))= cfg.appEnv
-        .nd-term__body
-          p.nd-cmd
-            span.nd-prompt #{db}=>
+    .fi-stage
+      //- La machine à écrire du bibliothécaire = la session psql, avec la vraie requête et le vrai résultat
+      section.fi-machine(aria-label="Session psql sur la base de l'application")
+        .fi-slip#fi-slip
+          p.fi-slip__head
+            span.fi-slip__name(title='psql · ' + (cc.appName || 'demo-nodejs-postgresql')) psql · #{cc.appName || 'demo-nodejs-postgresql'}
+            span.fi-env(class=(cfg.appEnv === 'production' ? 'is-production' : null))= cfg.appEnv
+          p.fi-cmd
+            span.fi-prompt #{db}=>
             |  SELECT id, value, created_at FROM values ORDER BY id DESC LIMIT 6;
-          table.nd-psql
+          table.fi-psql
             thead
               tr
                 th(scope="col") id
                 th(scope="col") value
                 th(scope="col") created_at
-            tbody#nd-psql-rows
+            tbody#fi-psql-rows
               each row in termRows
                 tr(data-id=row.id)
                   td= row.id
                   td(title=row.value)= row.value
                   td(title=new Date(row.createdAt).toISOString())= ago(row.createdAt)
-          p.nd-out
-            span#nd-rows (#{n} ligne#{n > 1 ? 's' : ''})
+          p.fi-out
+            span#fi-rows (#{n} ligne#{n > 1 ? 's' : ''})
             span Temps : #{fmt(sqlMs)} ms
-          ol#nd-log.nd-log(aria-live="polite")
+          ol#fi-log.fi-log(aria-live="polite")
           if cfg.readOnly
-            p.nd-cmd.nd-cmd--locked
-              span.nd-prompt #{db}=>
+            p.fi-cmd.fi-cmd--locked
+              span.fi-prompt #{db}=>
               |  -- READ_ONLY=true : écritures refusées par l'application
+            span.fi-seal(aria-hidden="true") Consultation seule
           else
-            form#createForm.nd-insert(method="post" action="/values")
-              label.nd-prompt(for="psql-input") #{db}=>
-              span.nd-insert__sql INSERT INTO values VALUES ('
-              input#psql-input(type="text" name="value" maxlength=cfg.valueMaxLength autocomplete="off" spellcheck="false" placeholder="votre valeur" aria-describedby="nd-counter")
-              span.nd-insert__sql ');
-              .nd-insert__foot
-                span#nd-counter.nd-counter(data-max=cfg.valueMaxLength) 0/#{cfg.valueMaxLength} caractères · VALUE_MAX_LENGTH
-                button#create.nd-insert__go(type="submit") Entrée ↵
-        ul.nd-config(aria-label="Variables d'environnement lues par l'application")
-          li
-            span APP_ENV
-            b= cfg.appEnv
-          li
-            span READ_ONLY
-            b= cfg.readOnly ? 'true' : 'false'
-          li
-            span VALUE_MAX_LENGTH
-            b= cfg.valueMaxLength
-          li
-            span ANNOUNCEMENT
-            if cfg.announcement
-              b définie
-            else
-              b.is-empty non définie
-        dl.nd-platform
-          +platformVar('Instance', cc.instance)
-          +platformVar('Type d\'instance', cc.instanceType)
-          +platformVar('Commit déployé', cc.commit)
-          +platformVar('Déploiement', cc.deployment)
+            form#createForm.fi-insert(method="post" action="/values")
+              label.fi-prompt(for="psql-input") #{db}=>
+              span.fi-insert__sql INSERT INTO values VALUES ('
+              span.fi-insert__field
+                input#psql-input(type="text" name="value" maxlength=cfg.valueMaxLength autocomplete="off" spellcheck="false" placeholder="votre fiche" aria-describedby="fi-counter")
+                span.fi-insert__sql ');
+              .fi-insert__foot
+                span#fi-counter.fi-counter(data-max=cfg.valueMaxLength) 0/#{cfg.valueMaxLength} caractères · VALUE_MAX_LENGTH
+                button#create.fi-insert__go(type="submit") Entrée ↵
+        .fi-platen(aria-hidden="true")
+        .fi-body
+          .fi-keys(aria-hidden="true")
+            i
+            i
+            i
+            i.fi-keys__space
+          .fi-front
+            p.fi-nameplate Node.js #{cc.nodeMajor}
+            ul.fi-config(aria-label="Variables d'environnement lues par l'application")
+              li
+                span APP_ENV
+                b= cfg.appEnv
+              li
+                span READ_ONLY
+                b= cfg.readOnly ? 'true' : 'false'
+              li
+                span VALUE_MAX_LENGTH
+                b= cfg.valueMaxLength
+              li
+                span ANNOUNCEMENT
+                if cfg.announcement
+                  b définie
+                else
+                  b.is-empty non définie
 
+      //- Le meuble à fiches = la table PostgreSQL : un tiroir par heure, puis le tiroir ouvert par le SELECT
+      section.fi-cabinet(aria-label="Le fichier : la table values dans PostgreSQL")
+        .fi-carcass
+          .fi-cabinet__top
+            p.fi-brass
+              b values
+              span PostgreSQL #{cc.pgMajor || ''}, base #{db}
+          figure.fi-drawers(aria-label="Écritures par heure sur les dernières 24 heures")
+            ol
+              each c, i in d.hourly
+                - var h = 23 - i
+                li.fi-drawer(id=(h === 0 ? 'fi-now' : null) class=[c === 0 ? 'is-empty' : null, h === 0 ? 'is-now' : null] data-h=h data-count=c style='--n:' + Math.min(c, 10) title=(c + ' écriture' + (c > 1 ? 's' : '') + (h === 0 ? ' cette heure-ci' : ' il y a ' + h + ' h')))
+                  span.fi-drawer__stack
+                    b.fi-drawer__tab= c
+                  span.fi-drawer__front
+                    span.fi-drawer__label= hourLabel(h)
+            figcaption Un tiroir par heure, sur 24 h (heure de Paris) : chaque INSERT range sa fiche dans le tiroir de l'heure en cours.
+          .fi-shelf
+            ol#fi-open.fi-open(aria-label="Les six fiches les plus récentes, rangées du tiroir ouvert par le SELECT")
+              each row, k in termRows
+                +tab(row, k)
+            .fi-open__front
+              span.fi-holder ORDER BY id DESC LIMIT 6
+              span.fi-pull(aria-hidden="true")
+        aside.fi-plaque(aria-labelledby="fi-plaque-title")
+          p.fi-plaque__head
+            b#fi-plaque-title Running on Clever Cloud
+            span.fi-plaque__tag(class=(cc.live ? 'is-live' : null))= cc.live ? 'Live' : 'Local'
+          dl
+            +plate('Application', cc.appName)
+            +plate('APP_ID', cc.appId)
+            +plate('Instance', cc.instance)
+            +plate("Type d'instance", cc.instanceType)
+            +plate('Commit', cc.commit)
+            +plate('Déploiement', cc.deployment)
+
+  //- Le trajet d'une demande, comme le tube pneumatique d'une grande bibliothèque
+  section.fi-route(aria-labelledby="route-title")
+    .cc-container.fi-route__grid
+      div
+        h2#route-title.fi-h2 Le trajet d'une demande
+        p.fi-sub Du lecteur au magasin, et retour, pour chaque page affichée.
+        ol.fi-tube
+          li
+            i Le lecteur
+            b Navigateur
+            span HTTPS
+          li
+            i L'accueil
+            b Clever Cloud
+            span reverse proxy, TLS
+          li
+            i Le bibliothécaire
+            b Node.js #{cc.nodeMajor}
+            span= cc.instanceNumber ? 'instance ' + cc.instanceNumber : 'Express ' + cc.expressVersion.split('.')[0] + ', en local'
+          li
+            i Le magasin
+            b PostgreSQL#{cc.pgMajor ? ' ' + cc.pgMajor : ''}
+            span= cc.live ? 'add-on ' + db : 'base ' + db
+        h3.fi-h3 Ce que fait la plateforme
+        dl.fi-ledger
+          div
+            dt POSTGRESQL_ADDON_URI
+            dd Injectée par l'add-on lié, lue au démarrage par le pool #[code pg].
+          div
+            dt CC_HEALTH_CHECK_PATH=/health
+            dd Un SELECT 1 valide chaque déploiement avant la mise en service.
+          div
+            dt SIGTERM
+            dd À chaque redéploiement, les requêtes en cours finissent et le pool se ferme.
+      figure.fi-bulletin
+        figcaption
+          b Une seule requête SQL pour cette page.
+          span Le total, la dernière fiche, les 24 tiroirs et les #{listLimit} fiches les plus récentes.
+        pre.fi-sql= overviewSql
+        p.fi-bulletin__foot
+          span $1 = #{listLimit}
+          span Temps : #{fmt(sqlMs)} ms
+
+  .cc-container
     include partials/cert
 
-    section.nd-values(aria-labelledby="values-title")
-      .nd-values__head
-        h2#values-title.cc-section__title Toutes les valeurs
-        span.cc-section__sub Chaque ligne est un document JSONB de la table #[span.cc-kbd values]
-      ul#values.nd-rows
-        if d.values.length
-          each row in d.values
-            li.nd-row(id='row-' + row.id data-id=row.id)
-              span.nd-row__id ##{row.id}
-              .nd-row__main
-                .nd-row__value= row.value
-                code.nd-row__json(title='{"value": ' + JSON.stringify(row.value) + '}') {"value": #{JSON.stringify(row.value)}}
-              span.nd-row__age= ago(row.createdAt)
-              if !cfg.readOnly
-                button.cc-btn.cc-btn--sm.cc-btn--danger(type="button" data-delete=row.id aria-label='Supprimer la valeur ' + row.id) Supprimer
-        else
-          li.nd-empty
-            strong Aucune valeur pour l'instant
-            | Écrivez-en une dans le terminal ci-dessus : elle sera persistée dans PostgreSQL.
+    section.fi-all(aria-labelledby="values-title")
+      .fi-all__head
+        h2#values-title.fi-h2 Toutes les fiches
+        p.fi-sub Chaque fiche est un document JSONB de la table #[code values].
+      .fi-tray
+        ul#values.fi-cards
+          if d.values.length
+            each row in d.values
+              li.fi-card(id='row-' + row.id data-id=row.id data-created=new Date(row.createdAt).toISOString())
+                span.fi-card__id= row.id
+                time.fi-card__stamp(datetime=new Date(row.createdAt).toISOString())= ago(row.createdAt)
+                p.fi-card__value= row.value
+                code.fi-card__json {"value": #{JSON.stringify(row.value)}}
+                if !cfg.readOnly
+                  button.fi-card__out(type="button" data-delete=row.id aria-label='Retirer la fiche ' + row.id) Retirer
+          else
+            li.fi-empty
+              strong Le tiroir est vide.
+              | Tapez une fiche à la machine ci-dessus : elle sera rangée dans PostgreSQL.
       if n > d.values.length
-        p.nd-values__more #{d.values.length} valeurs les plus récentes affichées sur #{n}.
-  div(style="height: 64px")
+        p.fi-more #{d.values.length} fiches les plus récentes affichées sur #{n}.

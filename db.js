@@ -110,6 +110,10 @@ module.exports = {
 
   platformInfo: platformInfo,
 
+  // Le texte exact de la requête de la page, affiché sur le « bulletin de demande »
+  overviewSql: overviewText.trim(),
+  listLimit: LIST_LIMIT,
+
   // Liste + compteurs en une requête ; sqlMs = sa durée (affichée façon \timing de psql)
   overview: function () {
     var start = process.hrtime.bigint();

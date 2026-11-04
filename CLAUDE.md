@@ -49,6 +49,7 @@ Tu dois raisonner avec fermeté : ne propose pas plusieurs pistes floues si une 
 
 App CRUD minimaliste Node.js + PostgreSQL, refaite pour la vidéo (2026-10).
 L'utilisateur ajoute et supprime des valeurs texte (documents JSONB horodatés) depuis un terminal psql simulé dans la page.
+Univers (refonte 2026-11-04) : « le fichier » d'une vieille bibliothèque — chaque ligne est une fiche, le terminal psql est la machine à écrire du bibliothécaire, la table est un meuble à tiroirs (un tiroir par heure = pouls des écritures).
 Endpoint `/prime` (tests de charge CPU) monté uniquement si `ENABLE_PRIME=true`.
 Conçue comme démo de déploiement sur **Clever Cloud** avec add-on PostgreSQL.
 
@@ -82,14 +83,16 @@ Application en service du 2026-10-25 au 2026-11-05 (suppression planifiée aprè
 ### Variables de démo (onglet Variables de la console, puis `clever restart`)
 | Variable | Défaut | Effet visible |
 |---|---|---|
-| `APP_ENV` | `local` | Pastille dans la barre du terminal psql (dégradé Clever si `production`) |
-| `ANNOUNCEMENT` | vide | Bandeau en haut de toutes les pages |
-| `READ_ONLY` | `false` | `true` : pastille « Lecture seule », invite INSERT remplacée, boutons Supprimer retirés, POST/DELETE → 403 |
+| `APP_ENV` | `local` | Étiquette sur la fiche psql et plaque de la machine (dégradé Clever si `production`) |
+| `ANNOUNCEMENT` | vide | Avis (bande papier) sous la barre du haut, sur toutes les pages |
+| `READ_ONLY` | `false` | `true` : ligne « Lecture seule » sous le titre, invite INSERT remplacée, tampon « Consultation seule », boutons Retirer supprimés, POST/DELETE → 403 |
 | `VALUE_MAX_LENGTH` | `32` | Longueur max d'une valeur (8-280) : compteur sous l'invite, `maxlength`, validation serveur |
 
 Lues une fois au démarrage (`config.js`), valeur invalide → défaut.
 
-Avant un tournage : `./scripts/reset-demo.sh` recharge la base de l'app liée avec `scripts/demo-seed.sql` (16 valeurs, dates relatives à `now()`, 14 sur les dernières 24 h). En local : `DATABASE_URL=postgresql:///demo_node_video ./scripts/reset-demo.sh`.
+Avant un tournage : `./scripts/reset-demo.sh` recharge la base de l'app liée avec `scripts/demo-seed.sql` (16 valeurs, dates relatives à `now()`, 14 sur les dernières 24 h). Il vise l'app par alias : `CLEVER_ALIAS` (défaut `demo-nodejs-postgresql`), sinon « Several applications are linked » quand plusieurs apps sont liées au clone. En local : `DATABASE_URL=postgresql:///demo_node_video ./scripts/reset-demo.sh`.
+
+Tests : `npm test` (config + vues, sans base) ; `TEST_DATABASE_URL=postgresql://… npm test` ajoute les tests bout en bout (écriture, lecture, 400/403, READ_ONLY).
 
 Scénario vidéo : écrire une valeur dans le terminal → `ANNOUNCEMENT` + `READ_ONLY=true` dans la console → `clever restart` → recharger → remettre `READ_ONLY=false` → « Se certifier Clever Cloud ↓ ».
 
@@ -117,24 +120,26 @@ app.js            → setup Express, trust proxy, en-têtes de sécurité (CSP),
 config.js         → variables de démo (APP_ENV, ANNOUNCEMENT, READ_ONLY, VALUE_MAX_LENGTH), parsing robuste
 db.js             → pool PostgreSQL (PG_POOL_MAX), schéma idempotent (fail-fast), overview (liste + compteurs + pouls 24 h en une seule requête, durée mesurée), idleTimeout 60 s, insert/remove, platformInfo
 routes/routes.js  → GET /, GET /health, POST /values, DELETE /values/:id (garde Sec-Fetch-Site + READ_ONLY), GET /prime (si ENABLE_PRIME=true)
-views/            → layout (topbar, bandeau ANNOUNCEMENT, footer), index (premier écran + terminal psql + certification + liste), error
-views/partials/   → logo et badge SVG (inlinés via app.locals), cert.pug (bloc certification)
+views/            → layout (topbar, avis ANNOUNCEMENT, footer), index (machine à écrire = terminal psql, meuble à tiroirs, tiroir ouvert, plaque Running on Clever Cloud, trajet + requête réelle, toutes les fiches), error
+views/partials/   → logo et badge SVG (inlinés via app.locals), cert.pug (certification en carte de lecteur)
 public/cc-brand.css → Clever Brand Kit partagé (copié tel quel, ne pas modifier)
-public/demo.css   → styles propres à la démo (préfixe nd-)
-public/js/demo.js → écriture / suppression sans rechargement, mise à jour du terminal et du titre
-scripts/          → demo-seed.sql + reset-demo.sh (rechargement des données de démo)
+public/demo.css   → univers « le fichier » (préfixe fi-), tout en CSS (bois, fiches, laiton, machine à écrire)
+public/js/demo.js → écriture / suppression sans rechargement : journal psql, vol de la fiche vers son tiroir, compteurs
+scripts/          → demo-seed.sql + reset-demo.sh (rechargement des données de démo, CLEVER_ALIAS)
+test/             → node --test : config, vues (sans base), bout en bout si TEST_DATABASE_URL
 clevercloud/node.json → config historique (redondante avec scripts.start)
 ```
 
 ---
 
-## 🎨 Design — Clever Brand Kit
+## 🎨 Design — « Le fichier » + cadre Clever
 
-- Système visuel unique des démos Clever Cloud : Plus Jakarta Sans, navy `#13172e`, dégradé Clever (`#f57461 → #cb1c42 → #a51050`), JetBrains Mono pour les valeurs techniques.
-- Structure de la page d'accueil (refonte vidéo) : topbar → bandeau ANNOUNCEMENT → premier écran (titre « N valeurs dans PostgreSQL. », pouls des écritures 24 h, trajet de la requête (`instance #N` seulement, le nom Pokémon reste dans le panneau), « Une seule requête SQL pour cette page. » ; terminal psql (seule mesure affichée : `Temps : x ms`) avec SELECT réel, INSERT saisissable, variables de démo et variables Clever) → bloc certification (`partials/cert.pug`, badge animé, une seule inclusion par page à cause des `id` SVG) → « Toutes les valeurs » → footer.
-- Contraste : texte blanc sur dégradé assombri (`#cc4432 → #cb1c42 → #a51050`, AA), ligatures JetBrains Mono désactivées dans le terminal (`=>` reste lisible), `prefers-reduced-motion` respecté.
-- Les variables injectées par Clever (`CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID`) sont lues par `db.js › platformInfo` et affichées sous le terminal ; absentes (local) → « injecté au déploiement ». Sans `APP_ID` → pastille « Local · hors Clever Cloud ».
-- Spec : `docs/superpowers/specs/2026-09-06-clever-brand-design.md`.
+- Univers : le meuble à fiches d'une vieille bibliothèque. Mur vert salle de lecture, meuble en chêne, fiches cartonnées (filet rouge, réglures bleues, trou de tringle), machine à écrire noire, plaques en laiton, tampon violet pour `created_at`. Polices Google : Libre Caslon Display (titres gravés), Courier Prime (tout ce qui est tapé), Plus Jakarta Sans + JetBrains Mono (cadre Clever). Aucun fichier image : tout est en CSS (grain bois/papier en SVG `data:`).
+- Premier écran : titre « N fiches dans PostgreSQL. » → à gauche la machine à écrire (fiche psql : SELECT réel, résultat, `Temps : x ms`, journal `INSERT 0 1`, invite INSERT ; plaques APP_ENV / READ_ONLY / VALUE_MAX_LENGTH / ANNOUNCEMENT sur le corps) ; à droite le meuble (24 tiroirs = écritures par heure, heure de Paris, tiroir en cours surligné ; tiroir ouvert par le SELECT = 6 dernières fiches) et la plaque « Running on Clever Cloud ». Un INSERT : la fiche vole de la machine au tiroir de l'heure, puis entre dans le tiroir ouvert.
+- Plus bas : trajet d'une demande (tube pneumatique : lecteur → accueil Clever → bibliothécaire Node.js → magasin PostgreSQL) + texte exact de la requête unique de la page ; certification en carte de lecteur (`partials/cert.pug`, une seule inclusion par page à cause des `id` SVG) ; « Toutes les fiches » dans un plateau en bois.
+- Les variables injectées par Clever (`CC_APP_NAME`, `APP_ID`, `INSTANCE_NUMBER`, `INSTANCE_TYPE`, `CC_PRETTY_INSTANCE_NAME`, `CC_COMMIT_ID`, `CC_DEPLOYMENT_ID`) sont lues par `db.js › platformInfo` et affichées sur la plaque ; absentes (local) → « Local » et « injecté au déploiement ». Sans `APP_ID` → pastille « Local · hors Clever Cloud » dans la topbar.
+- `cc-brand.css` est copié tel quel (jamais modifié). `prefers-reduced-motion` : plus de vol de fiche ni d'animation. Téléphone : marges 16 px, aucun défilement horizontal.
+- Spec d'origine du cadre : `docs/superpowers/specs/2026-09-06-clever-brand-design.md`.
 
 ---
 

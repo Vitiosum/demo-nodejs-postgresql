@@ -47,6 +47,8 @@ router.get('/', function (req, res, next) {
         title: 'Node.js + PostgreSQL · Démo Clever Cloud',
         data: data,
         sqlMs: ms(data.sqlMs),
+        overviewSql: pg.overviewSql,
+        listLimit: pg.listLimit,
       });
     })
     .catch(function (err) {

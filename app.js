@@ -64,6 +64,12 @@ app.locals.ago = function (date) {
   return 'il y a ' + Math.floor(s / 86400) + ' j';
 };
 
+// Étiquette d'un tiroir horaire, en heure de Paris (« 14 h ») : un seul formateur pour toute l'app
+var parisHour = new Intl.DateTimeFormat('fr-FR', { hour: 'numeric', timeZone: 'Europe/Paris' });
+app.locals.hourLabel = function (hoursAgo) {
+  return parisHour.format(new Date(Date.now() - hoursAgo * 3600000));
+};
+
 app.use('/', routes);
 
 // catch 404 and forward to error handler

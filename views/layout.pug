@@ -4,14 +4,15 @@ html(lang="fr")
     meta(charset="utf-8")
     meta(name="viewport" content="width=device-width, initial-scale=1")
     meta(name="theme-color" content="#13172e")
+    meta(name="description" content="Le fichier d'une vieille bibliothèque : chaque ligne d'une table PostgreSQL est une fiche, tapée à la machine par une app Node.js sur Clever Cloud.")
     link(rel="preconnect" href="https://fonts.googleapis.com")
     link(rel="preconnect" href="https://fonts.gstatic.com" crossorigin)
-    link(href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500&family=Libre+Caslon+Display&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet")
     link(rel="stylesheet" href="/cc-brand.css")
     link(rel="stylesheet" href="/demo.css")
     link(rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 101 116'%3E%3Cpolygon fill='%23AB2B4A' points='100.423 29.134 100.423 86.868 89.721 73.062 83.76 58.003 83.756 58.003 89.418 42.731'/%3E%3Cpolygon fill='%23E87A68' points='.429 29.134 .429 86.868 9.889 73.481 17.092 58.003 17.096 58.003 9.773 43.319'/%3E%3Cpolygon fill='%23D74D4E' points='83.756 58.003 52.241 60.003 17.092 58.003 31.76 29.134 50.426 .269 70.722 31.961'/%3E%3Cpolygon fill='%23BD3246' points='100.423 29.134 83.756 58.003 50.426 .269'/%3E%3Cpolygon fill='%23F19175' points='50.426 .269 17.092 58.003 .425 29.134'/%3E%3Cpolygon fill='%23CF3942' points='83.756 58.003 72.365 82.931 50.426 115.737 27.849 81.83 17.092 58.003'/%3E%3Cpolygon fill='%23E0625B' points='50.426 115.737 .425 86.868 17.092 58.003'/%3E%3Cpolygon fill='%239A244F' points='50.422 115.737 100.423 86.868 83.756 58.003'/%3E%3C/svg%3E")
-    title= title || 'Node.js + PostgreSQL · Démo Clever Cloud'
-  body
+    title= title || 'Le fichier · Node.js + PostgreSQL sur Clever Cloud'
+  body.fi-room
     header.cc-topbar
       .cc-container.cc-topbar__inner
         a(href="https://www.clever.cloud" target="_blank" rel="noopener" aria-label="Clever Cloud")
@@ -22,7 +23,7 @@ html(lang="fr")
           | Node.js + PostgreSQL
         span.cc-topbar__spacer
         nav.cc-topbar__nav(aria-label="Navigation")
-          a.cc-topbar__link(href="/#values-title") Valeurs
+          a.cc-topbar__link(href="/#values-title") Fiches
           span.cc-pill.cc-pill--mono.cc-hide-sm= cc.stack
           if cc.live
             span.cc-pill.cc-pill--live
@@ -35,7 +36,7 @@ html(lang="fr")
           a.cc-pill.cc-pill--gradient(href="https://academy.clever.cloud/" target="_blank" rel="noopener") Se certifier ↗
 
     if cfg.announcement
-      .nd-announce(role="status")
+      .fi-notice(role="status")
         .cc-container
           code ANNOUNCEMENT
           span= cfg.announcement
