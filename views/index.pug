@@ -139,60 +139,62 @@ block content
             .fi-open__front
               span.fi-holder ORDER BY id DESC LIMIT 6
               span.fi-pull(aria-hidden="true")
-        aside.fi-plaque(aria-labelledby="fi-plaque-title")
-          p.fi-plaque__head
-            b#fi-plaque-title Running on Clever Cloud
-            span.fi-plaque__tag(class=(cc.live ? 'is-live' : null))= cc.live ? 'Live' : 'Local'
-          dl
-            +plate('Application', cc.appName)
-            +plate('APP_ID', cc.appId)
-            +plate('Instance', cc.instance)
-            +plate("Type d'instance", cc.instanceType)
-            +plate('Commit', cc.commit)
-            +plate('Déploiement', cc.deployment)
+      //- La plaque du fabricant, sous la machine et le meuble : Running on Clever Cloud
+      aside.fi-plaque(aria-labelledby="fi-plaque-title")
+        p.fi-plaque__head
+          b#fi-plaque-title Running on Clever Cloud
+          span.fi-plaque__tag(class=(cc.live ? 'is-live' : null))= cc.live ? 'Live' : 'Local'
+        dl
+          +plate('Application', cc.appName)
+          +plate('APP_ID', cc.appId)
+          +plate('Instance', cc.instance)
+          +plate("Type d'instance", cc.instanceType)
+          +plate('Commit', cc.commit)
+          +plate('Déploiement', cc.deployment)
 
   //- Le trajet d'une demande, comme le tube pneumatique d'une grande bibliothèque
   section.fi-route(aria-labelledby="route-title")
-    .cc-container.fi-route__grid
-      div
-        h2#route-title.fi-h2 Le trajet d'une demande
-        p.fi-sub Du lecteur au magasin, et retour, pour chaque page affichée.
-        ol.fi-tube
-          li
-            i Le lecteur
-            b Navigateur
-            span HTTPS
-          li
-            i L'accueil
-            b Clever Cloud
-            span reverse proxy, TLS
-          li
-            i Le bibliothécaire
-            b Node.js #{cc.nodeMajor}
-            span= cc.instanceNumber ? 'instance ' + cc.instanceNumber : 'Express ' + cc.expressVersion.split('.')[0] + ', en local'
-          li
-            i Le magasin
-            b PostgreSQL#{cc.pgMajor ? ' ' + cc.pgMajor : ''}
-            span= cc.live ? 'add-on ' + db : 'base ' + db
-        h3.fi-h3 Ce que fait la plateforme
-        dl.fi-ledger
-          div
-            dt POSTGRESQL_ADDON_URI
-            dd Injectée par l'add-on lié, lue au démarrage par le pool #[code pg].
-          div
-            dt CC_HEALTH_CHECK_PATH=/health
-            dd Un SELECT 1 valide chaque déploiement avant la mise en service.
-          div
-            dt SIGTERM
-            dd À chaque redéploiement, les requêtes en cours finissent et le pool se ferme.
-      figure.fi-bulletin
-        figcaption
-          b Une seule requête SQL pour cette page.
-          span Le total, la dernière fiche, les 24 tiroirs et les #{listLimit} fiches les plus récentes.
-        pre.fi-sql= overviewSql
-        p.fi-bulletin__foot
-          span $1 = #{listLimit}
-          span Temps : #{fmt(sqlMs)} ms
+    .cc-container
+      h2#route-title.fi-h2 Le trajet d'une demande
+      p.fi-sub Du lecteur au magasin, et retour, pour chaque page affichée.
+      ol.fi-tube
+        li
+          i Le lecteur
+          b Navigateur
+          span HTTPS
+        li
+          i L'accueil
+          b Clever Cloud
+          span reverse proxy, TLS
+        li
+          i Le bibliothécaire
+          b Node.js #{cc.nodeMajor}
+          span= cc.instanceNumber ? 'instance ' + cc.instanceNumber : 'Express ' + cc.expressVersion.split('.')[0] + ', en local'
+        li
+          i Le magasin
+          b PostgreSQL#{cc.pgMajor ? ' ' + cc.pgMajor : ''}
+          span= cc.live ? 'add-on ' + db : 'base ' + db
+      .fi-route__grid
+        div
+          h3.fi-h3 Ce que fait la plateforme
+          dl.fi-ledger
+            div
+              dt POSTGRESQL_ADDON_URI
+              dd Injectée par l'add-on lié, lue au démarrage par le pool #[code pg].
+            div
+              dt CC_HEALTH_CHECK_PATH=/health
+              dd Un SELECT 1 valide chaque déploiement avant la mise en service.
+            div
+              dt SIGTERM
+              dd À chaque redéploiement, les requêtes en cours finissent et le pool se ferme.
+        figure.fi-bulletin
+          figcaption
+            b Une seule requête SQL pour cette page.
+            span Le total, la dernière fiche, les 24 tiroirs et les #{listLimit} fiches les plus récentes.
+          pre.fi-sql= overviewSql
+          p.fi-bulletin__foot
+            span $1 = #{listLimit}
+            span Temps : #{fmt(sqlMs)} ms
 
   .cc-container
     include partials/cert
